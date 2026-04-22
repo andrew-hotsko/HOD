@@ -2,12 +2,21 @@
 
 import { V, HodLabel, HodButton, HodRule, HodStat, HodMark } from './atoms';
 
-export default function CompleteScreen({ config, onClose }) {
+export default function CompleteScreen({ config, stats, onClose }) {
+  const format = config.workout.main.format;
+  const isAMRAP = format === 'AMRAP';
+
+  const elapsed = stats?.elapsed ?? 0;
+  const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
+  const ss = String(elapsed % 60).padStart(2, '0');
+  const roundsDone = stats ? Math.max(0, (stats.round || 1) - 1) : 0;
+
   return (
     <div style={{
       flex: 1, background: V('ink'),
       display: 'flex', flexDirection: 'column',
       paddingTop: 'max(20px, env(safe-area-inset-top))',
+      overflow: 'auto',
     }} className="hod-grid-bg">
       <div style={{ padding: '12px 20px' }}>
         <HodMark size="sm" showDate={false} />
@@ -33,7 +42,40 @@ export default function CompleteScreen({ config, onClose }) {
           That's the HOD. Log it, hydrate, eat a real meal.
         </div>
 
-        <HodRule ticks style={{ margin: '32px 0 20px' }} />
+        {stats && (
+          <>
+            <HodRule ticks style={{ margin: '28px 0 16px' }} />
+
+            {/* Headline stat: time on the clock */}
+            <div style={{ display: 'flex', gap: 18, alignItems: 'flex-end' }}>
+              <div style={{ flex: 1 }}>
+                <HodLabel>TOTAL TIME</HodLabel>
+                <div className="hod-display hod-mono" style={{
+                  fontSize: 56, color: V('phos-400'), lineHeight: 1,
+                  fontVariantNumeric: 'tabular-nums', marginTop: 4,
+                  letterSpacing: '-0.02em',
+                  textShadow: '0 0 24px var(--phos-glow)',
+                }}>
+                  {mm}:{ss}
+                </div>
+              </div>
+              {isAMRAP && (
+                <div>
+                  <HodLabel>ROUNDS</HodLabel>
+                  <div className="hod-display hod-mono" style={{
+                    fontSize: 56, color: V('bone'), lineHeight: 1,
+                    fontVariantNumeric: 'tabular-nums', marginTop: 4,
+                    letterSpacing: '-0.02em',
+                  }}>
+                    {roundsDone}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        <HodRule ticks style={{ margin: '28px 0 20px' }} />
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           <HodStat label="FORMAT" value={config.workout.main.label} size="sm" />

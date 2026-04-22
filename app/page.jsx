@@ -51,6 +51,7 @@ function assembleWorkout(params, apiWorkout) {
 export default function App() {
   const [screen, setScreen] = useState('today');
   const [config, setConfig] = useState(null);
+  const [stats, setStats] = useState(null);
   const [historyDates, setHistoryDates] = useState([]);
   const fetchingRef = useRef(false);
 
@@ -104,7 +105,8 @@ export default function App() {
   const handleWarmupSkip = () => setScreen('generate');
   const handleGenerateReady = () => setScreen('live');
 
-  const handleLiveFinish = () => {
+  const handleLiveFinish = (finalStats) => {
+    setStats(finalStats);
     if (config?.workout?.finisher) {
       setScreen('finisher');
     } else {
@@ -120,6 +122,7 @@ export default function App() {
 
   const handleComplete = () => {
     setConfig(null);
+    setStats(null);
     setScreen('today');
   };
 
@@ -163,7 +166,7 @@ export default function App() {
         )}
 
         {screen === 'complete' && config?.workout && (
-          <CompleteScreen config={config} onClose={handleComplete} />
+          <CompleteScreen config={config} stats={stats} onClose={handleComplete} />
         )}
       </div>
     </main>

@@ -4,21 +4,32 @@ import { useState, useEffect, useRef } from 'react';
 import { V, HodLabel, HodButton } from './atoms';
 import { MOVES } from '@/lib/generator';
 
+// Formats that end when time runs out (show REMAINING, auto-finish at 0)
+const TIME_BOUNDED = ['AMRAP', 'EMOM', 'TABATA', 'STATIONS', 'INTERVALS', 'BLOCKS'];
+// Formats that end after one pass through the items (FINISH on last NEXT)
+const ONE_PASS = ['FORTIME', 'CHIPPER', 'SETS'];
+
 export default function LiveScreen({ config, onFinish, onExit, variant = 'adaptive' }) {
   const { workout } = config;
   const format = workout.main.format;
+  const isTimeBounded = TIME_BOUNDED.includes(format);
+  const isOnePass = ONE_PASS.includes(format);
 
   const [elapsed, setElapsed] = useState(0);
   const [paused, setPaused] = useState(false);
   const [round, setRound] = useState(1);
   const [itemIdx, setItemIdx] = useState(0);
+  const [itemsCompleted, setItemsCompleted] = useState(0);
   const [swapOpen, setSwapOpen] = useState(false);
   const [items, setItems] = useState(workout.main.items);
+  const [timeUp, setTimeUp] = useState(false);
   const pausedAtRef = useRef(null);
   const startRef = useRef(Date.now());
+  const finishedRef = useRef(false);
 
+  // Clock tick
   useEffect(() => {
-    if (paused) {
+    if (paused || timeUp) {
       pausedAtRef.current = elapsed;
       return;
     }
@@ -30,11 +41,32 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
       setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
     }, 100);
     return () => clearInterval(t);
-  }, [paused]);
+  }, [paused, timeUp]);
 
   const totalSec = (workout.main.minutes || 10) * 60;
   const remaining = Math.max(0, totalSec - elapsed);
   const progress = Math.min(1, elapsed / totalSec);
+
+  const finish = (reason) => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    onFinish({
+      elapsed,
+      round,
+      itemsCompleted,
+      totalItems: items.length,
+      reason,
+    });
+  };
+
+  // Auto-finish when time runs out for time-bounded workouts
+  useEffect(() => {
+    if (!isTimeBounded || timeUp) return;
+    if (elapsed >= totalSec) {
+      setTimeUp(true);
+      setTimeout(() => finish('time'), 1800);
+    }
+  }, [elapsed, isTimeBounded, totalSec, timeUp]);
 
   const currentItem = items[itemIdx] || items[0];
 
@@ -44,9 +76,22 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
        : 'movement')
     : variant;
 
+  const isLastItem = itemIdx === items.length - 1;
+  const nextWillFinish = isOnePass && isLastItem;
+
   const next = () => {
-    if (itemIdx < items.length - 1) setItemIdx(itemIdx + 1);
-    else { setItemIdx(0); setRound(r => r + 1); }
+    setItemsCompleted(n => n + 1);
+    if (nextWillFinish) {
+      finish('complete');
+      return;
+    }
+    if (itemIdx < items.length - 1) {
+      setItemIdx(itemIdx + 1);
+    } else {
+      // Time-bounded: wrap and increment round
+      setItemIdx(0);
+      setRound(r => r + 1);
+    }
   };
 
   const swap = () => {
@@ -87,7 +132,7 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
           </span>
         </div>
         <button
-          onClick={onFinish}
+          onClick={() => finish('manual')}
           className="hod-mono"
           style={{
             fontSize: 10, color: V('bone-faint'), letterSpacing: '0.22em',
@@ -119,9 +164,9 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
 
       {/* Main content */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px 20px 0', overflow: 'hidden' }}>
-        {layout === 'clock'    && <ClockLayout    workout={workout} elapsed={elapsed} currentItem={currentItem} itemIdx={itemIdx} items={items} />}
+        {layout === 'clock'    && <ClockLayout    workout={workout} elapsed={elapsed} remaining={remaining} currentItem={currentItem} itemIdx={itemIdx} items={items} />}
         {layout === 'rounds'   && <RoundsLayout   workout={workout} round={round}     currentItem={currentItem} itemIdx={itemIdx} items={items} />}
-        {layout === 'movement' && <MovementLayout workout={workout}                   currentItem={currentItem} itemIdx={itemIdx} items={items} />}
+        {layout === 'movement' && <MovementLayout workout={workout}                    currentItem={currentItem} itemIdx={itemIdx} items={items} isLastOnePass={nextWillFinish} />}
       </div>
 
       {/* Footer */}
@@ -165,13 +210,13 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
           </svg>
         </button>
 
-        <ElapsedClock elapsed={elapsed} />
+        <TimerDisplay elapsed={elapsed} remaining={remaining} showRemaining={isTimeBounded} />
 
         <button
           onClick={next}
           style={{
             flex: 1, height: 52,
-            background: V('phos-500'),
+            background: nextWillFinish ? V('phos-300') : V('phos-500'),
             color: V('ink'),
             border: `1px solid ${V('phos-400')}`,
             fontFamily: 'var(--f-display)',
@@ -179,7 +224,7 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}
         >
-          NEXT
+          {nextWillFinish ? 'FINISH' : 'NEXT'}
           <svg width="14" height="14" viewBox="0 0 14 14">
             <path d="M1 7h12M8 2l5 5-5 5" fill="none" stroke={V('ink')} strokeWidth="2" strokeLinecap="square" />
           </svg>
@@ -187,13 +232,16 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
       </div>
 
       {/* Pause overlay */}
-      {paused && (
+      {paused && !timeUp && (
         <PauseOverlay
           elapsed={elapsed}
           onResume={() => setPaused(false)}
-          onExit={() => { setPaused(false); onExit ? onExit() : onFinish(); }}
+          onExit={() => { setPaused(false); onExit ? onExit() : finish('manual'); }}
         />
       )}
+
+      {/* Time's up overlay */}
+      {timeUp && <TimeUpOverlay elapsed={elapsed} round={round} isAMRAP={format === 'AMRAP'} />}
 
       {/* Swap sheet */}
       {swapOpen && (
@@ -225,23 +273,74 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
   );
 }
 
-function ElapsedClock({ elapsed }) {
-  const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
-  const ss = String(elapsed % 60).padStart(2, '0');
+// Footer clock — shows REMAINING for time-bounded, ELAPSED for one-pass
+function TimerDisplay({ elapsed, remaining, showRemaining }) {
+  const t = showRemaining ? remaining : elapsed;
+  const mm = String(Math.floor(t / 60)).padStart(2, '0');
+  const ss = String(t % 60).padStart(2, '0');
+  const label = showRemaining ? 'REMAINING' : 'ELAPSED';
+  const urgent = showRemaining && remaining > 0 && remaining <= 10;
+
   return (
     <div style={{
       flex: 1.2, height: 52,
       background: V('ink'),
-      border: `1px solid ${V('iron-700')}`,
+      border: `1px solid ${urgent ? V('alert') : V('iron-700')}`,
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      transition: 'border-color 180ms ease',
     }}>
-      <span className="hod-label" style={{ color: V('bone-faint'), fontSize: 9 }}>ELAPSED</span>
+      <span className="hod-label" style={{ color: urgent ? V('alert') : V('bone-faint'), fontSize: 9 }}>
+        {label}
+      </span>
       <span className="hod-display hod-mono" style={{
-        fontSize: 28, color: V('bone'), letterSpacing: '-0.01em',
+        fontSize: 28, color: urgent ? V('alert') : V('bone'), letterSpacing: '-0.01em',
         fontVariantNumeric: 'tabular-nums', lineHeight: 1,
       }}>
         {mm}:{ss}
       </span>
+    </div>
+  );
+}
+
+function TimeUpOverlay({ elapsed, round, isAMRAP }) {
+  const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
+  const ss = String(elapsed % 60).padStart(2, '0');
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 60,
+      background: 'rgba(5,6,5,0.95)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      animation: 'hod-stamp 500ms ease-out',
+    }} className="hod-scanlines">
+      <div className="hod-label" style={{ color: V('phos-400'), marginBottom: 16, letterSpacing: '0.32em' }}>
+        · TIME
+      </div>
+      <div className="hod-display" style={{
+        fontSize: 128, color: V('phos-400'), lineHeight: 0.85,
+        letterSpacing: '-0.04em', fontWeight: 700,
+        textShadow: '0 0 40px var(--phos-glow)',
+      }}>
+        DONE.
+      </div>
+      {isAMRAP && (
+        <div style={{ marginTop: 32, textAlign: 'center' }}>
+          <div className="hod-label">YOU COMPLETED</div>
+          <div className="hod-display hod-mono" style={{
+            fontSize: 72, color: V('bone'), lineHeight: 1, fontVariantNumeric: 'tabular-nums',
+          }}>
+            {round - 1} {round - 1 === 1 ? 'ROUND' : 'ROUNDS'}
+          </div>
+        </div>
+      )}
+      <div style={{ marginTop: 24 }}>
+        <div className="hod-label">TOTAL TIME</div>
+        <div className="hod-display hod-mono" style={{
+          fontSize: 40, color: V('bone-dim'), lineHeight: 1,
+          fontVariantNumeric: 'tabular-nums', textAlign: 'center',
+        }}>
+          {mm}:{ss}
+        </div>
+      </div>
     </div>
   );
 }
@@ -291,9 +390,10 @@ function PauseOverlay({ elapsed, onResume, onExit }) {
 }
 
 // ── CLOCK LAYOUT (EMOM / TABATA) ─────────────────────────
-function ClockLayout({ workout, elapsed, currentItem }) {
+function ClockLayout({ workout, elapsed, remaining, currentItem }) {
   const secInMin = elapsed % 60;
   const minLeft = 59 - secInMin;
+  const totalMinLeft = Math.ceil(remaining / 60);
   return (
     <>
       <div style={{ textAlign: 'center', marginTop: 8 }}>
@@ -310,6 +410,9 @@ function ClockLayout({ workout, elapsed, currentItem }) {
           fontVariantNumeric: 'tabular-nums',
         }}>
           {String(minLeft).padStart(2, '0')}
+        </div>
+        <div className="hod-mono" style={{ fontSize: 11, color: V('bone-faint'), letterSpacing: '0.2em', marginTop: 4 }}>
+          {totalMinLeft} MIN REMAINING IN WORKOUT
         </div>
       </div>
       <div style={{ marginTop: 'auto', padding: '24px 0 12px', borderTop: `1px solid ${V('iron-700')}` }}>
@@ -382,7 +485,7 @@ function RoundsLayout({ workout, round, currentItem, itemIdx, items }) {
 }
 
 // ── MOVEMENT LAYOUT (FORTIME / SETS / CHIPPER) ───────────
-function MovementLayout({ workout, currentItem, itemIdx, items }) {
+function MovementLayout({ workout, currentItem, itemIdx, items, isLastOnePass }) {
   const reps = currentItem.schemeReps
     ? currentItem.schemeReps.join('-')
     : currentItem.reps ? `${currentItem.reps}` : '';
@@ -390,14 +493,29 @@ function MovementLayout({ workout, currentItem, itemIdx, items }) {
   return (
     <>
       <div>
-        <HodLabel style={{ color: V('phos-400'), marginTop: 8 }}>
-          MOVEMENT {itemIdx + 1} OF {items.length}
-        </HodLabel>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+          <HodLabel style={{ color: V('phos-400'), marginTop: 8 }}>
+            MOVEMENT {itemIdx + 1} OF {items.length}
+          </HodLabel>
+          {isLastOnePass && (
+            <HodLabel style={{ color: V('phos-300'), marginTop: 8 }}>· LAST ONE</HodLabel>
+          )}
+        </div>
         <div className="hod-display" style={{
           fontSize: 44, lineHeight: 0.95, marginTop: 10,
           color: V('bone'), letterSpacing: '-0.02em',
         }}>
           {currentItem.name}
+        </div>
+
+        {/* Movement progress pips */}
+        <div style={{ display: 'flex', gap: 4, marginTop: 14 }}>
+          {items.map((_, i) => (
+            <div key={i} style={{
+              flex: 1, height: 3,
+              background: i < itemIdx ? V('phos-500') : i === itemIdx ? V('phos-300') : V('iron-700'),
+            }} />
+          ))}
         </div>
       </div>
 
@@ -444,8 +562,8 @@ function MovementLayout({ workout, currentItem, itemIdx, items }) {
             </div>
           ))}
           {items.slice(itemIdx + 1).length === 0 && (
-            <div className="hod-mono" style={{ fontSize: 11, color: V('iron-500'), letterSpacing: '0.18em' }}>
-              — END OF BLOCK —
+            <div className="hod-mono" style={{ fontSize: 11, color: V('phos-400'), letterSpacing: '0.18em' }}>
+              — HIT FINISH WHEN DONE —
             </div>
           )}
         </div>
