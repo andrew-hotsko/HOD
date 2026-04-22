@@ -8,6 +8,7 @@ import {
   cueMinuteStart, cueCountdown, cueFinish, cueTap,
   isAudioMuted, setAudioMuted,
 } from '@/lib/audio';
+import RestScreen from './RestScreen';
 
 // Formats that end when time runs out (show REMAINING, auto-finish at 0)
 const TIME_BOUNDED = ['AMRAP', 'EMOM', 'TABATA', 'STATIONS', 'INTERVALS', 'BLOCKS'];
@@ -24,6 +25,8 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
   const [paused, setPaused] = useState(false);
   const [round, setRound] = useState(1);
   const [itemIdx, setItemIdx] = useState(0);
+  const [setIdx, setSetIdx] = useState(0);
+  const [resting, setResting] = useState(false);
   const [itemsCompleted, setItemsCompleted] = useState(0);
   const [swapOpen, setSwapOpen] = useState(false);
   const [items, setItems] = useState(workout.main.items);
@@ -118,10 +121,20 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
     : variant;
 
   const isLastItem = itemIdx === items.length - 1;
-  const nextWillFinish = isOnePass && isLastItem;
+  const hasSets = Array.isArray(currentItem.schemeReps) && format === 'SETS' && !currentItem.accessory;
+  const isLastSet = !hasSets || setIdx >= currentItem.schemeReps.length - 1;
+  const nextWillFinish = isOnePass && isLastItem && isLastSet;
 
   const next = () => {
     setItemsCompleted(n => n + 1);
+
+    // Strength sets: start a rest timer between sets of the same item
+    if (hasSets && !isLastSet) {
+      cueTap();
+      setResting(true);
+      return;
+    }
+
     if (nextWillFinish) {
       cueFinish();
       finish('complete');
@@ -130,11 +143,18 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
     cueTap();
     if (itemIdx < items.length - 1) {
       setItemIdx(itemIdx + 1);
+      setSetIdx(0);
     } else {
       // Time-bounded: wrap and increment round
       setItemIdx(0);
+      setSetIdx(0);
       setRound(r => r + 1);
     }
+  };
+
+  const handleRestComplete = () => {
+    setResting(false);
+    setSetIdx(s => s + 1);
   };
 
   const swap = () => {
@@ -233,7 +253,7 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px 20px 0', overflow: 'hidden' }}>
         {layout === 'clock'    && <ClockLayout    workout={workout} elapsed={elapsed} remaining={remaining} currentItem={currentItem} itemIdx={itemIdx} items={items} />}
         {layout === 'rounds'   && <RoundsLayout   workout={workout} round={round}     currentItem={currentItem} itemIdx={itemIdx} items={items} />}
-        {layout === 'movement' && <MovementLayout workout={workout}                    currentItem={currentItem} itemIdx={itemIdx} items={items} isLastOnePass={nextWillFinish} />}
+        {layout === 'movement' && <MovementLayout workout={workout}                    currentItem={currentItem} itemIdx={itemIdx} items={items} isLastOnePass={nextWillFinish} setIdx={hasSets ? setIdx : null} totalSets={hasSets ? currentItem.schemeReps.length : null} />}
       </div>
 
       {/* Footer */}
@@ -291,12 +311,24 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}
         >
-          {nextWillFinish ? 'FINISH' : 'NEXT'}
+          {nextWillFinish ? 'FINISH' : (hasSets && !isLastSet) ? 'REST' : 'NEXT'}
           <svg width="14" height="14" viewBox="0 0 14 14">
             <path d="M1 7h12M8 2l5 5-5 5" fill="none" stroke={V('ink')} strokeWidth="2" strokeLinecap="square" />
           </svg>
         </button>
       </div>
+
+      {/* Rest overlay (strength sets) */}
+      {resting && (
+        <RestScreen
+          duration={150}
+          label={`REST · SET ${setIdx + 1}/${currentItem.schemeReps.length} DONE`}
+          headline="RECOVER."
+          nextLabel={currentItem.name}
+          nextDetail={`SET ${setIdx + 2} · ${currentItem.schemeReps[setIdx + 1]} REPS${currentItem.load && currentItem.load !== '—' ? ` · ${currentItem.load}` : ''}`}
+          onComplete={handleRestComplete}
+        />
+      )}
 
       {/* Pause overlay */}
       {paused && !timeUp && (
@@ -552,17 +584,20 @@ function RoundsLayout({ workout, round, currentItem, itemIdx, items }) {
 }
 
 // ── MOVEMENT LAYOUT (FORTIME / SETS / CHIPPER) ───────────
-function MovementLayout({ workout, currentItem, itemIdx, items, isLastOnePass }) {
-  const reps = currentItem.schemeReps
-    ? currentItem.schemeReps.join('-')
-    : currentItem.reps ? `${currentItem.reps}` : '';
+function MovementLayout({ workout, currentItem, itemIdx, items, isLastOnePass, setIdx, totalSets }) {
+  const hasSets = setIdx != null && totalSets != null;
+  const reps = hasSets
+    ? `${currentItem.schemeReps[setIdx]}`
+    : currentItem.schemeReps
+      ? currentItem.schemeReps.join('-')
+      : currentItem.reps ? `${currentItem.reps}` : '';
 
   return (
     <>
       <div>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
           <HodLabel style={{ color: V('phos-400'), marginTop: 8 }}>
-            MOVEMENT {itemIdx + 1} OF {items.length}
+            {hasSets ? `SET ${setIdx + 1} OF ${totalSets}` : `MOVEMENT ${itemIdx + 1} OF ${items.length}`}
           </HodLabel>
           {isLastOnePass && (
             <HodLabel style={{ color: V('phos-300'), marginTop: 8 }}>· LAST ONE</HodLabel>
@@ -575,14 +610,22 @@ function MovementLayout({ workout, currentItem, itemIdx, items, isLastOnePass })
           {currentItem.name}
         </div>
 
-        {/* Movement progress pips */}
+        {/* Progress pips — sets for strength, items for one-pass */}
         <div style={{ display: 'flex', gap: 4, marginTop: 14 }}>
-          {items.map((_, i) => (
-            <div key={i} style={{
-              flex: 1, height: 3,
-              background: i < itemIdx ? V('phos-500') : i === itemIdx ? V('phos-300') : V('iron-700'),
-            }} />
-          ))}
+          {hasSets
+            ? Array.from({ length: totalSets }).map((_, i) => (
+                <div key={i} style={{
+                  flex: 1, height: 3,
+                  background: i < setIdx ? V('phos-500') : i === setIdx ? V('phos-300') : V('iron-700'),
+                }} />
+              ))
+            : items.map((_, i) => (
+                <div key={i} style={{
+                  flex: 1, height: 3,
+                  background: i < itemIdx ? V('phos-500') : i === itemIdx ? V('phos-300') : V('iron-700'),
+                }} />
+              ))
+          }
         </div>
       </div>
 
