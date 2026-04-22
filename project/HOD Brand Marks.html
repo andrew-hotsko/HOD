@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>HOD — Brand Marks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800&family=Anton&family=JetBrains+Mono:wght@400;500;700&family=Archivo+Black&family=Stint+Ultra+Condensed&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles/hod-tokens.css"/>
+<style>
+  body { background: var(--ink); padding: 32px; color: var(--bone); font-family: var(--f-mono); min-height: 100vh; }
+  .page-title { font-family: var(--f-display); font-size: 28px; letter-spacing: -0.01em; margin: 0 0 4px; }
+  .page-sub { font-size: 11px; color: var(--bone-faint); letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 32px; }
+  .grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;
+    max-width: 1100px; margin: 0 auto;
+  }
+  .cell {
+    background: var(--iron-900);
+    border: 1px solid var(--iron-700);
+    min-height: 320px;
+    padding: 28px;
+    position: relative;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .cell .num {
+    position: absolute; top: 10px; left: 12px;
+    font-size: 10px; color: var(--iron-500); letter-spacing: 0.2em;
+  }
+  .cell .cap {
+    position: absolute; bottom: 10px; left: 12px; right: 12px;
+    font-size: 9px; color: var(--bone-faint); letter-spacing: 0.2em;
+    display: flex; justify-content: space-between; text-transform: uppercase;
+  }
+  .reg { position:absolute; width:10px; height:10px; border-color: var(--iron-600); border-style: solid; }
+  .reg.tl { top:-5px; left:-5px; border-width: 1px 0 0 1px; }
+  .reg.tr { top:-5px; right:-5px; border-width: 1px 1px 0 0; }
+  .reg.bl { bottom:-5px; left:-5px; border-width: 0 0 1px 1px; }
+  .reg.br { bottom:-5px; right:-5px; border-width: 0 1px 1px 0; }
+  .mark { font-family: var(--f-display); color: var(--bone); }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">HOD · brand marks</h1>
+<div class="page-sub">six directions · wordmark · stamp · monogram · app icon</div>
+
+<div class="grid">
+  <!-- 01 — Current direction: wordmark + slash + date stamp -->
+  <div class="cell">
+    <div class="num">01</div>
+    <div class="reg tl"></div><div class="reg tr"></div><div class="reg bl"></div><div class="reg br"></div>
+    <div style="display:flex; align-items:baseline; gap:6px;">
+      <span class="mark" style="font-size:72px; color:#a3e635; letter-spacing:-0.02em; font-weight:700;">HOD</span>
+      <span class="mark" style="font-size:36px; color:#525852;">//</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px; margin-top:8px; color: var(--bone-faint); font-size:11px; letter-spacing:0.22em;">
+      04.21.26 <span style="width:4px; height:4px; background:#84cc16; border-radius:50%;"></span> TUE
+    </div>
+    <div class="cap"><span>DATE-STAMPED LOCKUP</span><span>IN USE</span></div>
+  </div>
+
+  <!-- 02 — Stencil stamp, rubber-stamp feel, rotated -->
+  <div class="cell" style="background: #0d0e0d;">
+    <div class="num">02</div>
+    <div class="reg tl"></div><div class="reg tr"></div><div class="reg bl"></div><div class="reg br"></div>
+    <div style="display:flex; justify-content:center;">
+      <div style="border: 3px solid #a3e635; padding: 18px 28px; transform: rotate(-4deg); display:flex; flex-direction:column; align-items:center; box-shadow: 0 0 0 6px #0d0e0d, 0 0 0 7px #2d5a1f;">
+        <span class="mark" style="font-size:56px; color:#a3e635; line-height:0.85; letter-spacing:0.02em;">HOD</span>
+        <span style="font-family: var(--f-mono); font-size:9px; color:#a3e635; letter-spacing:0.3em; margin-top:4px;">HOTSKO · OF · THE · DAY</span>
+      </div>
+    </div>
+    <div class="cap"><span>STAMP VARIANT</span><span>MEMBERSHIP / T-SHIRT</span></div>
+  </div>
+
+  <!-- 03 — Single-line horizontal (small UI contexts) -->
+  <div class="cell">
+    <div class="num">03</div>
+    <div class="reg tl"></div><div class="reg tr"></div><div class="reg bl"></div><div class="reg br"></div>
+    <div style="display:flex; align-items:center; gap:12px; justify-content:center;">
+      <div style="width:12px; height:12px; background:#a3e635; transform: rotate(45deg);"></div>
+      <span class="mark" style="font-size:48px; color:var(--bone); letter-spacing:0.2em; font-weight:600;">HOD</span>
+      <div style="height:1px; width:28px; background:var(--bone-faint);"></div>
+      <span style="font-family:var(--f-mono); font-size:11px; color:var(--bone-faint); letter-spacing:0.24em;">HOTSKO</span>
+    </div>
+    <div class="cap"><span>INLINE / NAV BAR</span><span>COMPACT UI</span></div>
+  </div>
+
+  <!-- 04 — Monogram (just H) — tall, single glyph for app icon + avatar -->
+  <div class="cell">
+    <div class="num">04</div>
+    <div class="reg tl"></div><div class="reg tr"></div><div class="reg bl"></div><div class="reg br"></div>
+    <div style="display:flex; justify-content:center; gap:24px; align-items:center;">
+      <!-- Three weights -->
+      <div style="width:80px; height:80px; background:#050605; border:1px solid #242924; display:flex; align-items:center; justify-content:center;">
+        <span style="font-family: 'Anton', sans-serif; font-size:56px; color:#a3e635; letter-spacing:-0.04em;">H</span>
+      </div>
+      <div style="width:80px; height:80px; background:#a3e635; display:flex; align-items:center; justify-content:center; box-shadow:0 0 24px rgba(132,204,22,0.3);">
+        <span style="font-family: 'Anton', sans-serif; font-size:56px; color:#050605; letter-spacing:-0.04em;">H</span>
+      </div>
+      <div style="width:80px; height:80px; background:#050605; border:2px solid #a3e635; display:flex; align-items:center; justify-content:center; position:relative;">
+        <span style="font-family: 'Anton', sans-serif; font-size:56px; color:var(--bone); letter-spacing:-0.04em;">H</span>
+        <div style="position:absolute; top:4px; right:4px; width:4px; height:4px; background:#a3e635;"></div>
+      </div>
+    </div>
+    <div class="cap"><span>MONOGRAM · APP ICON STUDY</span><span>3 WEIGHTS</span></div>
+  </div>
+
+  <!-- 05 — Vertical "manifest" lockup (loading / splash) -->
+  <div class="cell">
+    <div class="num">05</div>
+    <div class="reg tl"></div><div class="reg tr"></div><div class="reg bl"></div><div class="reg br"></div>
+    <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
+      <div style="font-family: var(--f-mono); font-size:9px; color:var(--bone-faint); letter-spacing:0.3em;">HOTSKO</div>
+      <div style="height:1px; width:40px; background:var(--iron-600);"></div>
+      <span class="mark" style="font-size:64px; color:var(--bone); line-height:0.85; letter-spacing:-0.02em; font-weight:700;">HOD</span>
+      <div style="height:1px; width:40px; background:var(--iron-600);"></div>
+      <div style="font-family: var(--f-mono); font-size:9px; color:#a3e635; letter-spacing:0.3em;">OF THE DAY</div>
+    </div>
+    <div class="cap"><span>VERTICAL LOCKUP</span><span>SPLASH / LOADING</span></div>
+  </div>
+
+  <!-- 06 — Poster / heavy type (Barlow Condensed 800) -->
+  <div class="cell" style="padding: 20px; background:#0b0d0b;">
+    <div class="num">06</div>
+    <div class="reg tl"></div><div class="reg tr"></div><div class="reg bl"></div><div class="reg br"></div>
+    <div style="display:flex; flex-direction:column; gap:0;">
+      <div style="font-family: 'Barlow Condensed', sans-serif; font-weight:800; font-size:80px; color:var(--bone); line-height:0.82; letter-spacing:-0.02em;">HOTSKO</div>
+      <div style="font-family: 'Barlow Condensed', sans-serif; font-weight:800; font-size:80px; color:#a3e635; line-height:0.82; letter-spacing:-0.02em;">OF THE</div>
+      <div style="font-family: 'Barlow Condensed', sans-serif; font-weight:800; font-size:80px; color:var(--bone); line-height:0.82; letter-spacing:-0.02em;">DAY<span style="color:#525852;">·</span></div>
+      <div style="display:flex; align-items:center; gap:8px; margin-top:10px;">
+        <div style="height:2px; width:24px; background:#a3e635;"></div>
+        <span style="font-family: var(--f-mono); font-size:10px; color:var(--bone-faint); letter-spacing:0.24em;">NO. 111 / 365</span>
+      </div>
+    </div>
+    <div class="cap"><span>POSTER / MARKETING</span><span>WALL SIZE</span></div>
+  </div>
+</div>
+
+</body>
+</html>
