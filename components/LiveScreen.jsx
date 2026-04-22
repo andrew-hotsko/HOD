@@ -62,17 +62,27 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
   const remaining = Math.max(0, totalSec - elapsed);
   const progress = Math.min(1, elapsed / totalSec);
 
-  // Audio cues tied to integer-second ticks
+  // Audio cues + EMOM auto-advance on minute boundaries
   useEffect(() => {
     if (paused || timeUp || finishedRef.current || elapsed === 0) return;
     if (format === 'EMOM' && elapsed % 60 === 0 && elapsed < totalSec) {
       cueMinuteStart();
+      // Auto-advance to next movement at the top of every minute
+      setItemIdx(idx => {
+        const n = idx + 1;
+        if (n >= items.length) {
+          setRound(r => r + 1);
+          return 0;
+        }
+        return n;
+      });
+      setItemsCompleted(n => n + 1);
     }
     if (isTimeBounded && !timeUp) {
       const r = totalSec - elapsed;
       if (r === 3 || r === 2 || r === 1) cueCountdown();
     }
-  }, [elapsed, paused, timeUp, format, isTimeBounded, totalSec]);
+  }, [elapsed, paused, timeUp, format, isTimeBounded, totalSec, items.length]);
 
   useEffect(() => {
     if (timeUp) cueFinish();
