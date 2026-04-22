@@ -157,6 +157,39 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
     setSetIdx(s => s + 1);
   };
 
+  const prev = () => {
+    if (!isOnePass || resting || paused || timeUp || finishedRef.current) return;
+    if (itemIdx === 0 && setIdx === 0) return;
+    if (hasSets && setIdx > 0) {
+      setSetIdx(s => s - 1);
+    } else if (itemIdx > 0) {
+      setItemIdx(i => i - 1);
+      setSetIdx(0);
+    }
+    cueTap();
+  };
+
+  // Swipe gesture handling on the main content area
+  const touchRef = useRef(null);
+  const onTouchStart = (e) => {
+    if (paused || resting || timeUp || swapOpen) return;
+    const t = e.touches[0];
+    touchRef.current = { x: t.clientX, y: t.clientY, time: Date.now() };
+  };
+  const onTouchEnd = (e) => {
+    const s = touchRef.current;
+    touchRef.current = null;
+    if (!s) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    if (Date.now() - s.time > 600) return;
+    if (Math.abs(dx) < 50) return;
+    if (Math.abs(dy) > Math.abs(dx) * 0.6) return;
+    if (dx < 0) next();
+    else prev();
+  };
+
   const swap = () => {
     const cur = items[itemIdx];
     const pool = MOVES.filter(m => m.name !== cur.name);
@@ -250,7 +283,11 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
       </div>
 
       {/* Main content */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px 20px 0', overflow: 'hidden' }}>
+      <div
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px 20px 0', overflow: 'hidden', touchAction: 'pan-y' }}
+      >
         {layout === 'clock'    && <ClockLayout    workout={workout} elapsed={elapsed} remaining={remaining} currentItem={currentItem} itemIdx={itemIdx} items={items} />}
         {layout === 'rounds'   && <RoundsLayout   workout={workout} round={round}     currentItem={currentItem} itemIdx={itemIdx} items={items} />}
         {layout === 'movement' && <MovementLayout workout={workout}                    currentItem={currentItem} itemIdx={itemIdx} items={items} isLastOnePass={nextWillFinish} setIdx={hasSets ? setIdx : null} totalSets={hasSets ? currentItem.schemeReps.length : null} />}
