@@ -16,6 +16,7 @@ import {
 } from '@/lib/storage';
 import OnboardingScreen from '@/components/OnboardingScreen';
 import HistoryDetailScreen from '@/components/HistoryDetailScreen';
+import InstallPrompt from '@/components/InstallPrompt';
 
 function assembleWorkout(params, apiWorkout) {
   const intense = INTENSITIES.find(i => i.key === params.intensity);
@@ -161,7 +162,10 @@ export default function App() {
         )}
 
         {screen === 'today' && (
-          <TodayScreen onStart={handleStart} history={history14} onOpenDay={handleOpenDetail} />
+          <>
+            <TodayScreen onStart={handleStart} history={history14} onOpenDay={handleOpenDetail} />
+            <InstallPrompt />
+          </>
         )}
 
         {screen === 'history' && detailDate && (
