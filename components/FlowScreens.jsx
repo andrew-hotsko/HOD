@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { V, HodLabel, HodButton, HodMark } from './atoms';
+import { useWakeLock } from '@/lib/wakelock';
 
 // ── WARMUP ────────────────────────────────────────────────
 export function WarmupScreen({ onDone, onSkip }) {
   const [sec, setSec] = useState(300); // 5 min
+  useWakeLock(true);
 
   useEffect(() => {
     if (sec <= 0) { onDone(); return; }
@@ -91,6 +93,7 @@ export function WarmupScreen({ onDone, onSkip }) {
 export function FinisherScreen({ config, onDone }) {
   const note = config.workout.finisher?.note || '3 min Assault Bike — max cal';
   const [sec, setSec] = useState(180);
+  useWakeLock(true);
 
   useEffect(() => {
     if (sec <= 0) return;

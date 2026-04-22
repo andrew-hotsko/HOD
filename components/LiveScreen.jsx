@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { V, HodLabel, HodButton } from './atoms';
 import { MOVES } from '@/lib/generator';
+import { useWakeLock } from '@/lib/wakelock';
 
 // Formats that end when time runs out (show REMAINING, auto-finish at 0)
 const TIME_BOUNDED = ['AMRAP', 'EMOM', 'TABATA', 'STATIONS', 'INTERVALS', 'BLOCKS'];
@@ -26,6 +27,8 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
   const pausedAtRef = useRef(null);
   const startRef = useRef(Date.now());
   const finishedRef = useRef(false);
+
+  useWakeLock(true);
 
   // Clock tick
   useEffect(() => {
