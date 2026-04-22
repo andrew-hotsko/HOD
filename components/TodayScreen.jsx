@@ -5,7 +5,7 @@ import { V, HodLabel, HodTag, HodRule, HodReg, HodMark } from './atoms';
 import { INTENSITIES, STYLES, DURATIONS, generateHOD } from '@/lib/generator';
 import { primeAudio } from '@/lib/audio';
 
-export default function TodayScreen({ onStart, history, onOpenDay }) {
+export default function TodayScreen({ onStart, history, onOpenDay, yesterdayRecord, onRepeatYesterday }) {
   const [intensity, setIntensity] = useState('HARD');
   const [style, setStyle] = useState('CROSSFIT');
   const [duration, setDuration] = useState(30);
@@ -100,6 +100,34 @@ export default function TodayScreen({ onStart, history, onOpenDay }) {
       <div style={{ padding: '24px 20px 0', flex: 1, overflowY: 'auto' }} className="hod-no-scrollbar">
 
         <HistoryStrip history={history} onOpenDay={onOpenDay} />
+
+        {yesterdayRecord && onRepeatYesterday && (
+          <button
+            onClick={() => { primeAudio(); onRepeatYesterday(); }}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 12px', marginBottom: 18,
+              background: V('iron-900'),
+              border: `1px solid ${V('iron-700')}`,
+              textAlign: 'left',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+              <path d="M2 7a5 5 0 018.5-3.5L12 5M12 2v3h-3M12 7a5 5 0 01-8.5 3.5L2 9M2 12V9h3" stroke={V('phos-400')} strokeWidth="1.4" strokeLinecap="square" />
+            </svg>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="hod-mono" style={{ fontSize: 9, color: V('phos-400'), letterSpacing: '0.22em' }}>
+                REPEAT YESTERDAY
+              </div>
+              <div className="hod-display" style={{ fontSize: 14, color: V('bone'), letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {yesterdayRecord.workout?.main?.headline || 'Previous workout'}
+              </div>
+            </div>
+            <span className="hod-mono" style={{ fontSize: 10, color: V('bone-faint'), letterSpacing: '0.2em' }}>
+              →
+            </span>
+          </button>
+        )}
 
         <HodLabel style={{ marginBottom: 10 }}>TODAY · YOUR HOD</HodLabel>
 

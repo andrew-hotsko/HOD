@@ -10,7 +10,7 @@ import CompleteScreen from '@/components/CompleteScreen';
 import { WarmupScreen, FinisherScreen } from '@/components/FlowScreens';
 import {
   loadHistoryDates, addHistoryDate, buildHistory14,
-  saveWorkoutRecord, updateWorkoutRating,
+  saveWorkoutRecord, loadWorkoutRecord, updateWorkoutRating,
   getCachedWorkout, setCachedWorkout,
   loadEquipment, isOnboarded, setOnboarded, todayISO,
 } from '@/lib/storage';
@@ -39,18 +39,23 @@ export default function App() {
   const [stats, setStats] = useState(null);
   const [historyDates, setHistoryDates] = useState([]);
   const [detailDate, setDetailDate] = useState(null);
+  const [yesterdayRecord, setYesterdayRecord] = useState(null);
   const fetchingRef = useRef(false);
 
   useEffect(() => {
     setHistoryDates(loadHistoryDates());
+    const y = todayISO(new Date(Date.now() - 86400000));
+    setYesterdayRecord(loadWorkoutRecord(y));
     if (!isOnboarded()) setScreen('onboarding');
   }, []);
 
   const history14 = buildHistory14(historyDates);
 
-  const handleStart = useCallback(async (params) => {
-    setConfig({ ...params, workout: null });
+  const handleStart = useCallback(async (params, preloaded = null) => {
+    setConfig({ ...params, workout: preloaded });
     setScreen('warmup');
+
+    if (preloaded) return;
 
     // Cache hit: same date + same params → skip the API round-trip
     const cached = getCachedWorkout(params);
@@ -129,6 +134,11 @@ export default function App() {
     setScreen('today');
   };
 
+  const handleRepeatYesterday = useCallback(() => {
+    if (!yesterdayRecord) return;
+    handleStart(yesterdayRecord.params, yesterdayRecord.workout);
+  }, [handleStart, yesterdayRecord]);
+
   const handleOpenDetail = (iso) => {
     setDetailDate(iso);
     setScreen('history');
@@ -163,7 +173,13 @@ export default function App() {
 
         {screen === 'today' && (
           <>
-            <TodayScreen onStart={handleStart} history={history14} onOpenDay={handleOpenDetail} />
+            <TodayScreen
+              onStart={handleStart}
+              history={history14}
+              onOpenDay={handleOpenDetail}
+              yesterdayRecord={yesterdayRecord}
+              onRepeatYesterday={handleRepeatYesterday}
+            />
             <InstallPrompt />
           </>
         )}
