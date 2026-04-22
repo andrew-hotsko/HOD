@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { V, HodLabel, HodTag, HodRule, HodReg, HodMark } from './atoms';
 import { INTENSITIES, STYLES, DURATIONS, generateHOD } from '@/lib/generator';
+import { primeAudio } from '@/lib/audio';
 
 export default function TodayScreen({ onStart, history }) {
   const [intensity, setIntensity] = useState('HARD');
@@ -23,7 +24,10 @@ export default function TodayScreen({ onStart, history }) {
   const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / 86400000);
   const weekNum = Math.ceil(today.getDate() / 7);
 
-  const handleStart = () => onStart({ intensity, style, duration });
+  const handleStart = () => {
+    primeAudio();
+    onStart({ intensity, style, duration });
+  };
 
   return (
     <div

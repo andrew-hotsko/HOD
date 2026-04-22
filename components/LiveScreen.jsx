@@ -4,6 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import { V, HodLabel, HodButton } from './atoms';
 import { MOVES } from '@/lib/generator';
 import { useWakeLock } from '@/lib/wakelock';
+import {
+  cueMinuteStart, cueCountdown, cueFinish, cueTap,
+  isAudioMuted, setAudioMuted,
+} from '@/lib/audio';
 
 // Formats that end when time runs out (show REMAINING, auto-finish at 0)
 const TIME_BOUNDED = ['AMRAP', 'EMOM', 'TABATA', 'STATIONS', 'INTERVALS', 'BLOCKS'];
@@ -24,11 +28,19 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
   const [swapOpen, setSwapOpen] = useState(false);
   const [items, setItems] = useState(workout.main.items);
   const [timeUp, setTimeUp] = useState(false);
+  const [muted, setMuted] = useState(false);
   const pausedAtRef = useRef(null);
   const startRef = useRef(Date.now());
   const finishedRef = useRef(false);
 
   useWakeLock(true);
+
+  useEffect(() => { setMuted(isAudioMuted()); }, []);
+  const toggleMute = () => {
+    const next = !muted;
+    setMuted(next);
+    setAudioMuted(next);
+  };
 
   // Clock tick
   useEffect(() => {
@@ -49,6 +61,22 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
   const totalSec = (workout.main.minutes || 10) * 60;
   const remaining = Math.max(0, totalSec - elapsed);
   const progress = Math.min(1, elapsed / totalSec);
+
+  // Audio cues tied to integer-second ticks
+  useEffect(() => {
+    if (paused || timeUp || finishedRef.current || elapsed === 0) return;
+    if (format === 'EMOM' && elapsed % 60 === 0 && elapsed < totalSec) {
+      cueMinuteStart();
+    }
+    if (isTimeBounded && !timeUp) {
+      const r = totalSec - elapsed;
+      if (r === 3 || r === 2 || r === 1) cueCountdown();
+    }
+  }, [elapsed, paused, timeUp, format, isTimeBounded, totalSec]);
+
+  useEffect(() => {
+    if (timeUp) cueFinish();
+  }, [timeUp]);
 
   const finish = (reason) => {
     if (finishedRef.current) return;
@@ -85,9 +113,11 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
   const next = () => {
     setItemsCompleted(n => n + 1);
     if (nextWillFinish) {
+      cueFinish();
       finish('complete');
       return;
     }
+    cueTap();
     if (itemIdx < items.length - 1) {
       setItemIdx(itemIdx + 1);
     } else {
@@ -134,16 +164,40 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
             {workout.main.label}
           </span>
         </div>
-        <button
-          onClick={() => finish('manual')}
-          className="hod-mono"
-          style={{
-            fontSize: 10, color: V('bone-faint'), letterSpacing: '0.22em',
-            border: `1px solid ${V('iron-700')}`, padding: '6px 10px',
-          }}
-        >
-          END
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={toggleMute}
+            aria-label={muted ? 'Unmute audio' : 'Mute audio'}
+            style={{
+              width: 32, height: 28,
+              border: `1px solid ${V('iron-700')}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: muted ? V('iron-500') : V('bone-dim'),
+            }}
+          >
+            {muted ? (
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M1 5v4h3l4 3V2L4 5H1z" fill="currentColor" />
+                <path d="M10 5l3 3M13 5l-3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="square" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M1 5v4h3l4 3V2L4 5H1z" fill="currentColor" />
+                <path d="M10 4.5c1 .8 1 3.2 0 4M12 3c2 1.5 2 5.5 0 7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="square" fill="none" />
+              </svg>
+            )}
+          </button>
+          <button
+            onClick={() => finish('manual')}
+            className="hod-mono"
+            style={{
+              fontSize: 10, color: V('bone-faint'), letterSpacing: '0.22em',
+              border: `1px solid ${V('iron-700')}`, padding: '6px 10px',
+            }}
+          >
+            END
+          </button>
+        </div>
       </div>
 
       {/* Progress bar */}
