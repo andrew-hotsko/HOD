@@ -1,0 +1,133 @@
+import Anthropic from '@anthropic-ai/sdk';
+import { INTENSITIES, STYLES, generateHOD } from '@/lib/generator';
+
+const client = new Anthropic();
+
+const SYSTEM_PROMPT = `You are HOD (Hotsko of the Day) — a workout generator for a private garage gym.
+
+AVAILABLE EQUIPMENT:
+- Rogue Monster Lite squat rack
+- Barbell with plate pairs: 10, 25, 35, 45 lb per side
+- Incline/decline bench
+- Rogue Assault Bike
+- Revolt cable pulley
+- Adjustable kettlebell: 8–40 lb
+- Adjustable dumbbells: 2.5–52.5 lb pairs
+- Pull-up bar
+- 50 lb weighted vest
+
+Generate a single workout as a JSON object with this exact structure:
+{
+  "main": {
+    "label": string,
+    "headline": string,
+    "format": string,
+    "minutes": number,
+    "description": string,
+    "items": [
+      {
+        "name": string,
+        "unit": string,
+        "reps": number,
+        "schemeReps": number[],
+        "load": string,
+        "accessory": boolean
+      }
+    ]
+  },
+  "finisher": {
+    "label": "FINISHER",
+    "duration": 3,
+    "note": string
+  } | null
+}
+
+RULES:
+- Only include fields relevant to each item (omit reps if using schemeReps, etc.)
+- For AMRAP/EMOM: items have "reps" (number) + "unit"
+- For FORTIME/CHIPPER: items have "schemeReps" ([21,15,9] or per-move reps) + "unit"
+- For TABATA/STATIONS: items have "unit" = "20s" or "45s" (no reps)
+- For SETS: first item has schemeReps:[5,5,5,5,5], accessories have reps
+- Loads: realistic for an intermediate-to-advanced male athlete at given intensity
+- Include a finisher ~50% of the time (null otherwise)
+- Respond ONLY with the raw JSON — no markdown, no explanation`;
+
+export async function POST(request) {
+  const { intensity, style, duration } = await request.json();
+
+  const intense = INTENSITIES.find(i => i.key === intensity);
+  const styleDef = STYLES[style];
+
+  const intensityDescs = {
+    EASY:   '70% effort — light loads, perfect form, no redlining',
+    STEADY: '80% effort — working weight, steady pace throughout',
+    HARD:   '90% effort — challenging loads, push hard, high output',
+    SAVAGE: '100% effort — PR-level loads, maximum output, brutal',
+  };
+
+  const formatsByStyle = {
+    CROSSFIT:     ['AMRAP', 'FORTIME', 'EMOM', 'CHIPPER'],
+    HIIT:         ['TABATA', 'INTERVALS'],
+    F45:          ['STATIONS'],
+    ORANGETHEORY: ['INTERVALS', 'BLOCKS'],
+    SEALFIT:      ['CHIPPER', 'EMOM'],
+    STRENGTH:     ['SETS'],
+    CONDITIONING: ['AMRAP', 'INTERVALS'],
+  };
+
+  const validFormats = formatsByStyle[style] || ['AMRAP'];
+  const mainMinutes = duration - 8;
+
+  const userPrompt = `Generate a ${duration}-minute ${styleDef.label} workout.
+
+Intensity: ${intensity} — ${intensityDescs[intensity]}
+Style: ${styleDef.label}
+Main block duration: ${mainMinutes} minutes (8 min reserved for warmup/cooldown)
+Valid formats for ${style}: ${validFormats.join(', ')}
+
+Pick one format from the valid list. Design a workout appropriate for ${mainMinutes} minutes at ${intensity} intensity using the available garage gym equipment. Choose 3–6 movements.`;
+
+  try {
+    const response = await client.messages.create({
+      model: 'claude-opus-4-7',
+      max_tokens: 1024,
+      thinking: { type: 'adaptive' },
+      system: [
+        {
+          type: 'text',
+          text: SYSTEM_PROMPT,
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
+      messages: [{ role: 'user', content: userPrompt }],
+    });
+
+    const textBlock = response.content.find(b => b.type === 'text');
+    if (!textBlock) throw new Error('No text in response');
+
+    let text = textBlock.text.trim();
+    // Strip markdown code fences if the model adds them despite instructions
+    text = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+
+    const { main, finisher } = JSON.parse(text);
+
+    // Build full workout object with the same shape as generateHOD()
+    const workout = {
+      date: new Date().toISOString(),
+      intensity: intense,
+      style: { key: style, ...styleDef },
+      format: main.format,
+      duration,
+      warmup: { label: 'WARMUP', duration: 5, note: '5 min — bike easy + dynamic mobility' },
+      main,
+      finisher,
+    };
+
+    return Response.json({ workout });
+  } catch (err) {
+    console.error('API generation failed, using JS fallback:', err);
+    // Fallback to deterministic JS generator
+    const workout = generateHOD({ intensity, style, duration });
+    return Response.json({ workout, fallback: true });
+  }
+}
