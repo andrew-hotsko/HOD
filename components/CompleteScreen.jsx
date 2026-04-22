@@ -11,10 +11,42 @@ const RATINGS = [
 
 export default function CompleteScreen({ config, stats, onClose, onRate }) {
   const [rating, setRating] = useState(null);
+  const [shared, setShared] = useState(false);
   const pickRating = (key) => {
     setRating(key);
     onRate?.(key);
   };
+
+  const elapsedSec = stats?.elapsed ?? 0;
+  const elMM = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
+  const elSS = String(elapsedSec % 60).padStart(2, '0');
+  const isAMRAPShare = config.workout.main.format === 'AMRAP';
+  const roundsDoneShare = stats ? Math.max(0, (stats.round || 1) - 1) : 0;
+
+  const shareText = [
+    `HOD — ${elMM}:${elSS}`,
+    `${config.workout.style.label.toUpperCase()} · ${config.workout.main.format} · ${config.duration} MIN`,
+    isAMRAPShare ? `${roundsDoneShare} round${roundsDoneShare === 1 ? '' : 's'}` : null,
+    `Intensity: ${config.workout.intensity.label}`,
+  ].filter(Boolean).join('\n');
+
+  const handleShare = async () => {
+    const payload = { title: 'HOD', text: shareText };
+    try {
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        await navigator.share(payload);
+        return;
+      }
+    } catch {
+      // User canceled or share failed; fall through to clipboard
+    }
+    try {
+      await navigator.clipboard.writeText(shareText);
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+    } catch {}
+  };
+
 
   const format = config.workout.main.format;
   const isAMRAP = format === 'AMRAP';
@@ -127,8 +159,12 @@ export default function CompleteScreen({ config, stats, onClose, onRate }) {
       <div style={{
         padding: '12px 16px',
         paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
+        display: 'flex', gap: 10,
       }}>
-        <HodButton onClick={onClose} full size="lg">BACK TO TODAY</HodButton>
+        <HodButton onClick={handleShare} variant="ghost" size="lg" style={{ flex: 1 }}>
+          {shared ? 'COPIED' : 'SHARE'}
+        </HodButton>
+        <HodButton onClick={onClose} full size="lg" style={{ flex: 2 }}>BACK TO TODAY</HodButton>
       </div>
     </div>
   );
