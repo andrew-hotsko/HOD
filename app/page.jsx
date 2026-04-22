@@ -8,30 +8,14 @@ import GenerateScreen from '@/components/GenerateScreen';
 import LiveScreen from '@/components/LiveScreen';
 import CompleteScreen from '@/components/CompleteScreen';
 import { WarmupScreen, FinisherScreen } from '@/components/FlowScreens';
-
-const HISTORY_KEY = 'hod.history';
-
-function loadHistory() {
-  try {
-    return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-  } catch {
-    return [];
-  }
-}
-
-function saveHistory(dates) {
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(dates));
-}
-
-function buildHistory14(dates) {
-  const today = new Date();
-  return Array.from({ length: 14 }).map((_, i) => {
-    const d = new Date(today);
-    d.setDate(d.getDate() - (13 - i));
-    const iso = d.toISOString().split('T')[0];
-    return dates.includes(iso);
-  });
-}
+import {
+  loadHistoryDates, addHistoryDate, buildHistory14,
+  saveWorkoutRecord, updateWorkoutRating,
+  getCachedWorkout, setCachedWorkout,
+  loadEquipment, isOnboarded, setOnboarded, todayISO,
+} from '@/lib/storage';
+import OnboardingScreen from '@/components/OnboardingScreen';
+import HistoryDetailScreen from '@/components/HistoryDetailScreen';
 
 function assembleWorkout(params, apiWorkout) {
   const intense = INTENSITIES.find(i => i.key === params.intensity);
@@ -53,20 +37,27 @@ export default function App() {
   const [config, setConfig] = useState(null);
   const [stats, setStats] = useState(null);
   const [historyDates, setHistoryDates] = useState([]);
+  const [detailDate, setDetailDate] = useState(null);
   const fetchingRef = useRef(false);
 
   useEffect(() => {
-    setHistoryDates(loadHistory());
+    setHistoryDates(loadHistoryDates());
+    if (!isOnboarded()) setScreen('onboarding');
   }, []);
 
   const history14 = buildHistory14(historyDates);
 
   const handleStart = useCallback(async (params) => {
-    // Build a shell config immediately (without workout) so Generate screen can start
     setConfig({ ...params, workout: null });
     setScreen('warmup');
 
-    // Start fetching the AI workout in parallel with warmup
+    // Cache hit: same date + same params → skip the API round-trip
+    const cached = getCachedWorkout(params);
+    if (cached) {
+      setConfig(prev => ({ ...prev, workout: cached }));
+      return;
+    }
+
     if (fetchingRef.current) return;
     fetchingRef.current = true;
 
@@ -78,6 +69,7 @@ export default function App() {
           intensity: params.intensity,
           style: params.style,
           duration: params.duration,
+          equipment: loadEquipment(),
         }),
       });
 
@@ -86,9 +78,9 @@ export default function App() {
 
       const workout = assembleWorkout(params, data.workout);
       setConfig(prev => ({ ...prev, workout }));
+      setCachedWorkout(params, workout);
     } catch (err) {
       console.error('Workout generation failed:', err);
-      // Fallback: import and run the JS generator
       const { generateHOD } = await import('@/lib/generator');
       const workout = generateHOD({
         intensity: params.intensity,
@@ -96,6 +88,7 @@ export default function App() {
         duration: params.duration,
       });
       setConfig(prev => ({ ...prev, workout }));
+      setCachedWorkout(params, workout);
     } finally {
       fetchingRef.current = false;
     }
@@ -110,13 +103,13 @@ export default function App() {
     if (config?.workout?.finisher) {
       setScreen('finisher');
     } else {
-      markComplete();
+      markComplete(finalStats);
       setScreen('complete');
     }
   };
 
   const handleFinisherDone = () => {
-    markComplete();
+    markComplete(stats);
     setScreen('complete');
   };
 
@@ -126,20 +119,53 @@ export default function App() {
     setScreen('today');
   };
 
-  const markComplete = () => {
-    const iso = new Date().toISOString().split('T')[0];
-    setHistoryDates(prev => {
-      const updated = prev.includes(iso) ? prev : [...prev, iso];
-      saveHistory(updated);
-      return updated;
-    });
+  const handleRate = (rating) => {
+    updateWorkoutRating(todayISO(), rating);
+  };
+
+  const handleOnboardingDone = () => {
+    setOnboarded(true);
+    setScreen('today');
+  };
+
+  const handleOpenDetail = (iso) => {
+    setDetailDate(iso);
+    setScreen('history');
+  };
+
+  const handleCloseDetail = () => {
+    setDetailDate(null);
+    setScreen('today');
+  };
+
+  const markComplete = (finalStats) => {
+    const iso = todayISO();
+    const updated = addHistoryDate(iso);
+    setHistoryDates(updated);
+    if (config?.workout) {
+      saveWorkoutRecord({
+        date: iso,
+        params: { intensity: config.intensity, style: config.style, duration: config.duration },
+        workout: config.workout,
+        stats: finalStats || null,
+        rating: null,
+      });
+    }
   };
 
   return (
     <main style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: V('ink') }}>
       <div className="hod-screen" style={{ flex: 1 }}>
+        {screen === 'onboarding' && (
+          <OnboardingScreen onDone={handleOnboardingDone} />
+        )}
+
         {screen === 'today' && (
-          <TodayScreen onStart={handleStart} history={history14} />
+          <TodayScreen onStart={handleStart} history={history14} onOpenDay={handleOpenDetail} />
+        )}
+
+        {screen === 'history' && detailDate && (
+          <HistoryDetailScreen iso={detailDate} onClose={handleCloseDetail} />
         )}
 
         {screen === 'warmup' && (
@@ -166,7 +192,7 @@ export default function App() {
         )}
 
         {screen === 'complete' && config?.workout && (
-          <CompleteScreen config={config} stats={stats} onClose={handleComplete} />
+          <CompleteScreen config={config} stats={stats} onClose={handleComplete} onRate={handleRate} />
         )}
       </div>
     </main>

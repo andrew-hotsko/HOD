@@ -52,8 +52,29 @@ RULES:
 - Include a finisher ~50% of the time (null otherwise)
 - Respond ONLY with the raw JSON — no markdown, no explanation`;
 
+const EQUIPMENT_LABELS = {
+  rack:    'Rogue Monster Lite squat rack',
+  barbell: 'Barbell with plate pairs: 10, 25, 35, 45 lb per side',
+  bench:   'Incline/decline bench',
+  bike:    'Rogue Assault Bike',
+  cable:   'Revolt cable pulley',
+  kb:      'Adjustable kettlebell: 8–40 lb',
+  db:      'Adjustable dumbbells: 2.5–52.5 lb pairs',
+  pullup:  'Pull-up bar',
+  vest:    '50 lb weighted vest',
+};
+
+function buildEquipmentList(eq) {
+  if (!eq) return Object.values(EQUIPMENT_LABELS).map(l => `- ${l}`).join('\n');
+  const kept = Object.entries(EQUIPMENT_LABELS)
+    .filter(([k]) => eq[k])
+    .map(([, l]) => `- ${l}`);
+  if (kept.length === 0) return '- Bodyweight only';
+  return kept.join('\n');
+}
+
 export async function POST(request) {
-  const { intensity, style, duration } = await request.json();
+  const { intensity, style, duration, equipment } = await request.json();
 
   const intense = INTENSITIES.find(i => i.key === intensity);
   const styleDef = STYLES[style];
@@ -85,7 +106,10 @@ Style: ${styleDef.label}
 Main block duration: ${mainMinutes} minutes (8 min reserved for warmup/cooldown)
 Valid formats for ${style}: ${validFormats.join(', ')}
 
-Pick one format from the valid list. Design a workout appropriate for ${mainMinutes} minutes at ${intensity} intensity using the available garage gym equipment. Choose 3–6 movements.`;
+Available equipment (prescribe ONLY movements that use this kit + bodyweight):
+${buildEquipmentList(equipment)}
+
+Pick one format from the valid list. Design a workout appropriate for ${mainMinutes} minutes at ${intensity} intensity. Choose 3–6 movements.`;
 
   try {
     const response = await client.messages.create({

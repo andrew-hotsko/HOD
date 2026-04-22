@@ -1,8 +1,21 @@
 'use client';
 
+import { useState } from 'react';
 import { V, HodLabel, HodButton, HodRule, HodStat, HodMark } from './atoms';
 
-export default function CompleteScreen({ config, stats, onClose }) {
+const RATINGS = [
+  { key: 'easy',   label: 'EASY',   color: 'bone' },
+  { key: 'solid',  label: 'SOLID',  color: 'phos-400' },
+  { key: 'brutal', label: 'BRUTAL', color: 'alert' },
+];
+
+export default function CompleteScreen({ config, stats, onClose, onRate }) {
+  const [rating, setRating] = useState(null);
+  const pickRating = (key) => {
+    setRating(key);
+    onRate?.(key);
+  };
+
   const format = config.workout.main.format;
   const isAMRAP = format === 'AMRAP';
 
@@ -82,6 +95,32 @@ export default function CompleteScreen({ config, stats, onClose }) {
           <HodStat label="STYLE" value={config.workout.style.label.toUpperCase()} size="sm" />
           <HodStat label="DURATION" value={config.duration} unit="MIN" size="sm" />
           <HodStat label="INTENSITY" value={config.workout.intensity.label.toUpperCase()} size="sm" accent />
+        </div>
+
+        <HodRule ticks style={{ margin: '28px 0 14px' }} />
+
+        <HodLabel style={{ marginBottom: 10 }}>HOW'D IT GO?</HodLabel>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {RATINGS.map(r => {
+            const selected = rating === r.key;
+            return (
+              <button
+                key={r.key}
+                onClick={() => pickRating(r.key)}
+                className="hod-mono"
+                style={{
+                  flex: 1, height: 48,
+                  background: selected ? V(r.color) : 'transparent',
+                  color: selected ? V('ink') : V(r.color),
+                  border: `1px solid ${V(r.color)}`,
+                  fontSize: 12, letterSpacing: '0.22em', fontWeight: 600,
+                  transition: 'all 140ms ease',
+                }}
+              >
+                {r.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 

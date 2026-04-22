@@ -5,7 +5,7 @@ import { V, HodLabel, HodTag, HodRule, HodReg, HodMark } from './atoms';
 import { INTENSITIES, STYLES, DURATIONS, generateHOD } from '@/lib/generator';
 import { primeAudio } from '@/lib/audio';
 
-export default function TodayScreen({ onStart, history }) {
+export default function TodayScreen({ onStart, history, onOpenDay }) {
   const [intensity, setIntensity] = useState('HARD');
   const [style, setStyle] = useState('CROSSFIT');
   const [duration, setDuration] = useState(30);
@@ -99,7 +99,7 @@ export default function TodayScreen({ onStart, history }) {
       {/* ── SCROLLABLE CONTENT ──────────────────────────────── */}
       <div style={{ padding: '24px 20px 0', flex: 1, overflowY: 'auto' }} className="hod-no-scrollbar">
 
-        <HistoryStrip history={history} />
+        <HistoryStrip history={history} onOpenDay={onOpenDay} />
 
         <HodLabel style={{ marginBottom: 10 }}>TODAY · YOUR HOD</HodLabel>
 
@@ -283,24 +283,13 @@ function StartButton({ onClick }) {
   );
 }
 
-export function HistoryStrip({ history }) {
-  const today = new Date();
-  const days = Array.from({ length: 14 }).map((_, i) => {
-    const d = new Date(today);
-    d.setDate(d.getDate() - (13 - i));
-    return {
-      dow: ['S','M','T','W','T','F','S'][d.getDay()],
-      dd: d.getDate(),
-      done: !!(history && history[i]),
-      isToday: i === 13,
-    };
-  });
+export function HistoryStrip({ history, onOpenDay }) {
+  const days = history || [];
 
   const streak = (() => {
-    if (!history) return 0;
     let s = 0;
-    for (let i = history.length - 1; i >= 0; i--) {
-      if (history[i]) s++;
+    for (let i = days.length - 1; i >= 0; i--) {
+      if (days[i]?.done) s++;
       else break;
     }
     return s;
@@ -318,23 +307,36 @@ export function HistoryStrip({ history }) {
         </div>
       </div>
       <div style={{ display: 'flex', gap: 3 }}>
-        {days.map((d, i) => (
-          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-            <div style={{
-              width: '100%', aspectRatio: '1', maxWidth: 20,
-              background: d.done ? V('phos-500') : 'transparent',
-              border: `1px solid ${d.isToday ? V('phos-400') : d.done ? V('phos-500') : V('iron-700')}`,
-              position: 'relative',
-            }}>
-              {d.isToday && !d.done && (
-                <div style={{ position: 'absolute', inset: 3, border: `1px dashed ${V('phos-400')}` }} />
-              )}
-            </div>
-            <span className="hod-mono" style={{ fontSize: 8, color: d.isToday ? V('phos-400') : V('iron-500'), letterSpacing: '0.1em' }}>
-              {d.dd}
-            </span>
-          </div>
-        ))}
+        {days.map((d, i) => {
+          const clickable = d.done && onOpenDay;
+          return (
+            <button
+              key={i}
+              onClick={clickable ? () => onOpenDay(d.iso) : undefined}
+              disabled={!clickable}
+              style={{
+                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                background: 'transparent', padding: 0,
+                cursor: clickable ? 'pointer' : 'default',
+              }}
+              aria-label={clickable ? `Open workout detail for ${d.iso}` : undefined}
+            >
+              <div style={{
+                width: '100%', aspectRatio: '1', maxWidth: 20,
+                background: d.done ? V('phos-500') : 'transparent',
+                border: `1px solid ${d.isToday ? V('phos-400') : d.done ? V('phos-500') : V('iron-700')}`,
+                position: 'relative',
+              }}>
+                {d.isToday && !d.done && (
+                  <div style={{ position: 'absolute', inset: 3, border: `1px dashed ${V('phos-400')}` }} />
+                )}
+              </div>
+              <span className="hod-mono" style={{ fontSize: 8, color: d.isToday ? V('phos-400') : V('iron-500'), letterSpacing: '0.1em' }}>
+                {d.date ? d.date.getDate() : ''}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
