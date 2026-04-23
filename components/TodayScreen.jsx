@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { V, HodLabel, HodTag, HodRule, HodReg, HodMark } from './atoms';
 import { INTENSITIES, STYLES, DURATIONS, generateHOD } from '@/lib/generator';
 import { primeAudio } from '@/lib/audio';
-import { loadEquipment } from '@/lib/storage';
+import { loadEquipment, loadRecentWorkoutSummaries } from '@/lib/storage';
 
 export default function TodayScreen({ onStart, history, onOpenDay, yesterdayRecord, onRepeatYesterday, onOpenSettings }) {
   const [intensity, setIntensity] = useState('HARD');
@@ -14,7 +14,11 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
   // Live preview using the JS generator (equipment-aware so we never
   // suggest movements the user doesn't have gear for).
   const [equipment, setEquipment] = useState(null);
-  useEffect(() => { setEquipment(loadEquipment()); }, []);
+  const [recentCount, setRecentCount] = useState(0);
+  useEffect(() => {
+    setEquipment(loadEquipment());
+    setRecentCount(loadRecentWorkoutSummaries(7).length);
+  }, []);
   const preview = useMemo(
     () => generateHOD({ intensity, style, duration, equipment }),
     [intensity, style, duration, equipment]
@@ -141,7 +145,14 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
           </button>
         )}
 
-        <HodLabel style={{ marginBottom: 10 }}>TODAY · YOUR HOD</HodLabel>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+          <HodLabel>TODAY · YOUR HOD</HodLabel>
+          {recentCount > 0 && (
+            <span className="hod-mono" style={{ fontSize: 9, color: V('phos-400'), letterSpacing: '0.22em' }}>
+              · ADAPTS TO LAST {recentCount}
+            </span>
+          )}
+        </div>
 
         {/* Workout preview card */}
         <div style={{

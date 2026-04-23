@@ -13,6 +13,7 @@ import {
   saveWorkoutRecord, loadWorkoutRecord, updateWorkoutRating,
   getCachedWorkout, setCachedWorkout,
   loadEquipment, isOnboarded, setOnboarded, todayISO,
+  loadRecentWorkoutSummaries,
 } from '@/lib/storage';
 import OnboardingScreen from '@/components/OnboardingScreen';
 import HistoryDetailScreen from '@/components/HistoryDetailScreen';
@@ -76,6 +77,7 @@ export default function App() {
           style: params.style,
           duration: params.duration,
           equipment: loadEquipment(),
+          recentHistory: loadRecentWorkoutSummaries(7),
         }),
       });
 

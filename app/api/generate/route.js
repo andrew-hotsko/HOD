@@ -73,8 +73,27 @@ function buildEquipmentList(eq) {
   return kept.join('\n');
 }
 
+function formatHistory(recent) {
+  if (!Array.isArray(recent) || recent.length === 0) return null;
+  const lines = recent.map((r) => {
+    const moves = r.movements?.length ? ` · ${r.movements.join(' / ')}` : '';
+    const rating = r.rating ? ` · felt ${String(r.rating).toUpperCase()}` : '';
+    return `- ${r.daysAgo}d ago: ${r.headline} (${r.style} · ${r.intensity}${rating})${moves}`;
+  });
+  const consecutive = (() => {
+    let n = 0;
+    for (let i = 1; i <= recent.length; i++) {
+      if (recent.some((r) => r.daysAgo === i)) n++;
+      else break;
+    }
+    return n;
+  })();
+  const lastTwoBrutal = recent.slice(0, 2).every((r) => r.rating === 'brutal');
+  return { lines: lines.join('\n'), consecutive, lastTwoBrutal };
+}
+
 export async function POST(request) {
-  const { intensity, style, duration, equipment } = await request.json();
+  const { intensity, style, duration, equipment, recentHistory } = await request.json();
 
   const intense = INTENSITIES.find(i => i.key === intensity);
   const styleDef = STYLES[style];
@@ -99,6 +118,11 @@ export async function POST(request) {
   const validFormats = formatsByStyle[style] || ['AMRAP'];
   const mainMinutes = duration - 8;
 
+  const history = formatHistory(recentHistory);
+  const historyBlock = history
+    ? `\nRECENT TRAINING (last 7 days, most recent first):\n${history.lines}\n\nUse this context when choosing format and movement patterns:\n- Avoid repeating yesterday's dominant pattern (e.g. if yesterday was heavy squats, don't program heavy squats again today).\n- If the last two workouts were rated BRUTAL, ease intensity or choose a format with more built-in rest, even if the user selected ${intensity}.\n- If yesterday was a SETS/strength day, bias today toward conditioning or upper-body-biased work.${history.consecutive >= 4 ? `\n- The user has trained ${history.consecutive} consecutive days — lean toward a lighter/shorter stimulus unless they explicitly chose SAVAGE.` : ''}${history.lastTwoBrutal ? '\n- Two straight BRUTAL ratings is a real signal — prioritize recovery-biased work today.' : ''}\n- Still honor the user's selected intensity (${intensity}) as the primary guide; history nudges the choice of format and movements, not the overall effort level.\n`
+    : '';
+
   const userPrompt = `Generate a ${duration}-minute ${styleDef.label} workout.
 
 Intensity: ${intensity} — ${intensityDescs[intensity]}
@@ -108,7 +132,7 @@ Valid formats for ${style}: ${validFormats.join(', ')}
 
 Available equipment (prescribe ONLY movements that use this kit + bodyweight):
 ${buildEquipmentList(equipment)}
-
+${historyBlock}
 Pick one format from the valid list. Design a workout appropriate for ${mainMinutes} minutes at ${intensity} intensity. Choose 3–6 movements.`;
 
   try {
