@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { V, HodLabel, HodButton, HodRule, HodStat, HodMark } from './atoms';
 import { loadPR, savePR } from '@/lib/storage';
+import { Quote } from './Quote';
+import { randomQuote } from '@/lib/quotes';
 
 const MAX_NOTES = 300;
 
@@ -16,6 +18,7 @@ export default function CompleteScreen({ config, stats, onClose, onRate, onNote 
   const [rating, setRating] = useState(null);
   const [shared, setShared] = useState(false);
   const [notes, setNotes] = useState('');
+  const quote = useMemo(() => randomQuote(), []);
   const pickRating = (key) => {
     setRating(key);
     onRate?.(key);
@@ -120,6 +123,8 @@ export default function CompleteScreen({ config, stats, onClose, onRate, onNote 
         }}>
           That's the HOD. Log it, hydrate, eat a real meal.
         </div>
+
+        <Quote quote={quote} size="md" style={{ marginTop: 20, maxWidth: 340 }} />
 
         {stats && (
           <>

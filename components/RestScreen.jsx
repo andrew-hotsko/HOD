@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { V, HodLabel, HodButton } from './atoms';
 import { cueCountdown, cueRestComplete } from '@/lib/audio';
+import { Quote } from './Quote';
+import { randomQuote } from '@/lib/quotes';
 
 export default function RestScreen({
   duration = 120,
@@ -15,6 +17,7 @@ export default function RestScreen({
   const endRef = useRef(Date.now() + duration * 1000);
   const doneRef = useRef(false);
   const [remaining, setRemaining] = useState(duration);
+  const quote = useMemo(() => randomQuote(), []);
 
   useEffect(() => {
     const tick = () => {
@@ -98,6 +101,8 @@ export default function RestScreen({
             )}
           </div>
         )}
+
+        <Quote quote={quote} size="md" align="center" style={{ marginTop: 28, maxWidth: 340 }} />
       </div>
 
       <div style={{

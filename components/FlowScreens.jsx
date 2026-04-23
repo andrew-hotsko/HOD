@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { V, HodLabel, HodButton, HodMark } from './atoms';
 import { useWakeLock } from '@/lib/wakelock';
 import { loadEquipment } from '@/lib/storage';
+import { Quote } from './Quote';
+import { randomQuote } from '@/lib/quotes';
 
 function buildWarmupProtocol(eq) {
   const items = [];
@@ -18,6 +20,7 @@ function buildWarmupProtocol(eq) {
 // ── WARMUP ────────────────────────────────────────────────
 export function WarmupScreen({ onDone, onSkip }) {
   const [sec, setSec] = useState(300); // 5 min
+  const quote = useMemo(() => randomQuote(), []);
   useWakeLock(true);
 
   useEffect(() => {
@@ -56,6 +59,7 @@ export function WarmupScreen({ onDone, onSkip }) {
         }}>
           PRIME.
         </div>
+        <Quote quote={quote} size="md" style={{ marginTop: 14, maxWidth: 360 }} />
       </div>
 
       <div style={{ padding: '24px 20px 0', flex: 1 }}>

@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { V, HodLabel, HodButton } from './atoms';
+import { Quote } from './Quote';
+import { randomQuote } from '@/lib/quotes';
 import { MOVES } from '@/lib/generator';
 import { useWakeLock } from '@/lib/wakelock';
 import {
@@ -491,6 +493,7 @@ function TimeUpOverlay({ elapsed, round, isAMRAP }) {
 function PauseOverlay({ elapsed, onResume, onExit }) {
   const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
   const ss = String(elapsed % 60).padStart(2, '0');
+  const quote = useMemo(() => randomQuote(), []);
   return (
     <div style={{
       position: 'absolute', inset: 0, zIndex: 50,
@@ -510,6 +513,7 @@ function PauseOverlay({ elapsed, onResume, onExit }) {
         <div className="hod-display" style={{ fontSize: 96, lineHeight: 0.85, color: V('bone'), letterSpacing: '-0.03em' }}>
           PAUSED.
         </div>
+        <Quote quote={quote} size="lg" accent="alert" style={{ marginTop: 20, maxWidth: 340 }} />
         <div style={{ marginTop: 32 }}>
           <div className="hod-label">ELAPSED AT PAUSE</div>
           <div className="hod-display hod-mono" style={{
