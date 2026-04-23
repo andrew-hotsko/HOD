@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { V, HodLabel, HodTag, HodRule, HodReg, HodMark } from './atoms';
 import { INTENSITIES, STYLES, DURATIONS, generateHOD } from '@/lib/generator';
 import { primeAudio } from '@/lib/audio';
-import { loadEquipment, loadRecentWorkoutSummaries, loadProfile, loadFamilyCode, todayISO } from '@/lib/storage';
+import { loadEquipment, loadRecentWorkoutSummaries, loadProfile, loadFamilyCode, todayISO, weeklyStats } from '@/lib/storage';
 
 const TWEAK_OPTIONS = [
   { key: 'shoulder', label: 'SHOULDER' },
@@ -29,9 +29,11 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
   const [profileName, setProfileName] = useState('');
   const [familyFeed, setFamilyFeed] = useState(null); // null = not loaded / no code; [] = loaded empty
   const [familyWod, setFamilyWod] = useState(null);
+  const [week, setWeek] = useState(null);
   useEffect(() => {
     setEquipment(loadEquipment());
     setRecentCount(loadRecentWorkoutSummaries(7).length);
+    setWeek(weeklyStats());
     const name = (loadProfile().name || '').trim();
     setProfileName(name);
     const code = loadFamilyCode();
@@ -163,6 +165,10 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
       <div style={{ padding: '24px 20px 0', flex: 1, overflowY: 'auto' }} className="hod-no-scrollbar">
 
         <HistoryStrip history={history} onOpenDay={onOpenDay} />
+
+        {week && (week.workouts > 0 || week.restCount > 0) && (
+          <WeeklyStrip stats={week} />
+        )}
 
         {familyFeed && familyFeed.length > 0 && (
           <FamilyFeedStrip items={familyFeed} />
@@ -474,6 +480,56 @@ function timeAgo(ts) {
   if (h < 24) return `${h}h ago`;
   const d = Math.floor(h / 24);
   return `${d}d ago`;
+}
+
+function WeeklyStrip({ stats }) {
+  const mins = Math.floor(stats.totalElapsed / 60);
+  const hh = Math.floor(mins / 60);
+  const mm = mins % 60;
+  const timeStr = hh > 0 ? `${hh}H ${mm}M` : `${mm}M`;
+  const mostly = stats.mostlyRating ? stats.mostlyRating.toUpperCase() : null;
+  const tiles = [
+    { label: 'WORKOUTS', value: stats.workouts, accent: stats.workouts > 0 },
+    { label: 'REST', value: stats.restCount, accent: false },
+    { label: 'TIME', value: timeStr, accent: stats.totalElapsed > 0 },
+  ];
+  if (stats.prs > 0) tiles.push({ label: 'NEW PR', value: stats.prs, accent: true });
+  else if (mostly) tiles.push({ label: 'FELT', value: mostly, accent: mostly === 'SOLID' });
+  else if (stats.topFormat) tiles.push({ label: 'TOP FORMAT', value: stats.topFormat, accent: false });
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <HodLabel style={{ marginBottom: 8 }}>· THIS WEEK</HodLabel>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${tiles.length}, 1fr)`,
+        gap: 6,
+      }}>
+        {tiles.map((t, i) => (
+          <div key={i} style={{
+            padding: '10px 8px',
+            background: V('iron-900'),
+            border: `1px solid ${V('iron-700')}`,
+            textAlign: 'center',
+          }}>
+            <div className="hod-display hod-mono" style={{
+              fontSize: 20, color: t.accent ? V('phos-400') : V('bone'),
+              fontVariantNumeric: 'tabular-nums', lineHeight: 1,
+              letterSpacing: '-0.01em',
+            }}>
+              {t.value}
+            </div>
+            <div className="hod-mono" style={{
+              fontSize: 8, color: V('bone-faint'),
+              letterSpacing: '0.18em', marginTop: 4,
+            }}>
+              {t.label}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function FamilyWodCard({ wod, onStart }) {

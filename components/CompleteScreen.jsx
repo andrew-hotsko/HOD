@@ -4,18 +4,24 @@ import { useState, useEffect } from 'react';
 import { V, HodLabel, HodButton, HodRule, HodStat, HodMark } from './atoms';
 import { loadPR, savePR } from '@/lib/storage';
 
+const MAX_NOTES = 300;
+
 const RATINGS = [
   { key: 'easy',   label: 'EASY',   color: 'bone' },
   { key: 'solid',  label: 'SOLID',  color: 'phos-400' },
   { key: 'brutal', label: 'BRUTAL', color: 'alert' },
 ];
 
-export default function CompleteScreen({ config, stats, onClose, onRate }) {
+export default function CompleteScreen({ config, stats, onClose, onRate, onNote }) {
   const [rating, setRating] = useState(null);
   const [shared, setShared] = useState(false);
+  const [notes, setNotes] = useState('');
   const pickRating = (key) => {
     setRating(key);
     onRate?.(key);
+  };
+  const commitNotes = () => {
+    onNote?.(notes.trim());
   };
 
   const elapsedSec = stats?.elapsed ?? 0;
@@ -255,6 +261,37 @@ export default function CompleteScreen({ config, stats, onClose, onRate }) {
             );
           })}
         </div>
+
+        <HodRule ticks style={{ margin: '24px 0 12px' }} />
+
+        <HodLabel style={{ marginBottom: 8 }}>
+          NOTES <span style={{ color: V('bone-faint'), letterSpacing: '0.18em' }}>(OPTIONAL)</span>
+        </HodLabel>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value.slice(0, MAX_NOTES))}
+          onBlur={commitNotes}
+          placeholder="Shoulder felt tight · grip failed on round 3 · anything to remember"
+          rows={3}
+          className="hod-ui"
+          style={{
+            width: '100%',
+            background: V('iron-900'),
+            color: V('bone'),
+            border: `1px solid ${V('iron-700')}`,
+            padding: '12px 14px',
+            fontSize: 13,
+            fontFamily: 'var(--f-ui)',
+            lineHeight: 1.5,
+            outline: 'none',
+            resize: 'none',
+          }}
+        />
+        {notes.length > 0 && (
+          <div className="hod-mono" style={{ fontSize: 9, color: V('bone-faint'), letterSpacing: '0.18em', marginTop: 4, textAlign: 'right' }}>
+            {notes.length}/{MAX_NOTES}
+          </div>
+        )}
       </div>
 
       <div style={{

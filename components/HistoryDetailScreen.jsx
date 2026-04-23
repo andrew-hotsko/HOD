@@ -174,6 +174,21 @@ function Detail({ record }) {
           <HodStat label="FELT LIKE" value={ratingMeta.label} size="sm" accent={ratingMeta.color === 'phos-400'} />
         )}
       </div>
+
+      {record.notes && (
+        <>
+          <HodRule ticks style={{ margin: '20px 0 12px' }} />
+          <HodLabel style={{ marginBottom: 8 }}>NOTES</HodLabel>
+          <div style={{
+            fontFamily: 'var(--f-ui)', fontSize: 14, color: V('bone'),
+            lineHeight: 1.55, padding: '12px 14px',
+            background: V('iron-900'), border: `1px solid ${V('iron-700')}`,
+            whiteSpace: 'pre-wrap',
+          }}>
+            {record.notes}
+          </div>
+        </>
+      )}
     </>
   );
 }

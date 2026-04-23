@@ -10,7 +10,7 @@ import CompleteScreen from '@/components/CompleteScreen';
 import { WarmupScreen, FinisherScreen } from '@/components/FlowScreens';
 import {
   loadHistoryDates, addHistoryDate, buildHistory14,
-  saveWorkoutRecord, loadWorkoutRecord, updateWorkoutRating,
+  saveWorkoutRecord, loadWorkoutRecord, updateWorkoutRating, updateWorkoutNotes,
   getCachedWorkout, setCachedWorkout,
   loadEquipment, isOnboarded, setOnboarded, todayISO,
   loadRecentWorkoutSummaries, loadProfile, loadFamilyCode,
@@ -143,6 +143,10 @@ export default function App() {
 
   const handleRate = (rating) => {
     updateWorkoutRating(todayISO(), rating);
+  };
+
+  const handleNote = (notes) => {
+    updateWorkoutNotes(todayISO(), notes);
   };
 
   const handleProfileOnboardingNext = () => setScreen('onboarding-equipment');
@@ -339,7 +343,7 @@ export default function App() {
         )}
 
         {screen === 'complete' && config?.workout && (
-          <CompleteScreen config={config} stats={stats} onClose={handleComplete} onRate={handleRate} />
+          <CompleteScreen config={config} stats={stats} onClose={handleComplete} onRate={handleRate} onNote={handleNote} />
         )}
       </div>
     </main>
