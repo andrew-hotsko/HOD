@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { V, HodLabel, HodButton, HodRule, HodMark } from './atoms';
-import { DEFAULT_EQUIPMENT, saveEquipment } from '@/lib/storage';
+import { DEFAULT_EQUIPMENT, saveEquipment, loadEquipment } from '@/lib/storage';
 
 const EQUIPMENT_ITEMS = [
   { key: 'barbell', label: 'Barbell', note: 'With plate pairs: 10 / 25 / 35 / 45 lb' },
@@ -16,8 +16,13 @@ const EQUIPMENT_ITEMS = [
   { key: 'vest',    label: 'Weighted vest', note: '50 lb' },
 ];
 
-export default function OnboardingScreen({ onDone }) {
+export default function OnboardingScreen({ onDone, onCancel, mode = 'onboarding' }) {
   const [eq, setEq] = useState({ ...DEFAULT_EQUIPMENT });
+  const isEdit = mode === 'edit';
+
+  useEffect(() => {
+    if (isEdit) setEq(loadEquipment());
+  }, [isEdit]);
 
   const toggle = (key) => setEq(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -35,13 +40,25 @@ export default function OnboardingScreen({ onDone }) {
       paddingTop: 'max(20px, env(safe-area-inset-top))',
       overflow: 'hidden',
     }} className="hod-grid-bg">
-      <div style={{ padding: '12px 20px' }}>
+      <div style={{ padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <HodMark size="sm" showDate={false} />
+        {isEdit && onCancel && (
+          <button
+            onClick={onCancel}
+            className="hod-mono"
+            style={{
+              fontSize: 10, color: V('bone-faint'), letterSpacing: '0.22em',
+              border: `1px solid ${V('iron-700')}`, padding: '6px 12px',
+            }}
+          >
+            ← BACK
+          </button>
+        )}
       </div>
 
       <div style={{ padding: '8px 20px 0' }}>
         <div className="hod-label" style={{ color: V('phos-400'), letterSpacing: '0.32em' }}>
-          · INTAKE
+          · {isEdit ? 'EDIT' : 'INTAKE'}
         </div>
         <div className="hod-display" style={{
           fontSize: 48, lineHeight: 0.9, color: V('bone'),
@@ -53,7 +70,9 @@ export default function OnboardingScreen({ onDone }) {
           fontFamily: 'var(--f-ui)', fontSize: 13, color: V('bone-dim'),
           marginTop: 10, maxWidth: 320,
         }}>
-          What's in your garage? We'll only prescribe movements you can actually do.
+          {isEdit
+            ? 'Bought a new piece of gear or broke something? Update the kit — workouts will adjust next time.'
+            : "What's in your garage? We'll only prescribe movements you can actually do."}
         </div>
       </div>
 
@@ -119,7 +138,7 @@ export default function OnboardingScreen({ onDone }) {
         background: `linear-gradient(to top, ${V('ink')} 70%, transparent)`,
       }}>
         <HodButton onClick={finish} size="lg" full disabled={selectedCount === 0}>
-          START · BEGIN HOD
+          {isEdit ? 'SAVE KIT' : 'START · BEGIN HOD'}
         </HodButton>
       </div>
     </div>

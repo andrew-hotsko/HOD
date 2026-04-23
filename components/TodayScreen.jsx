@@ -6,7 +6,7 @@ import { INTENSITIES, STYLES, DURATIONS, generateHOD } from '@/lib/generator';
 import { primeAudio } from '@/lib/audio';
 import { loadEquipment } from '@/lib/storage';
 
-export default function TodayScreen({ onStart, history, onOpenDay, yesterdayRecord, onRepeatYesterday }) {
+export default function TodayScreen({ onStart, history, onOpenDay, yesterdayRecord, onRepeatYesterday, onOpenSettings }) {
   const [intensity, setIntensity] = useState('HARD');
   const [style, setStyle] = useState('CROSSFIT');
   const [duration, setDuration] = useState(30);
@@ -52,13 +52,21 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
         padding: '8px 20px 0',
       }}>
         <HodMark size="sm" showDate={false} />
-        <div style={{
-          width: 32, height: 32,
-          border: `1px solid ${V('iron-700')}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <span className="hod-mono" style={{ fontSize: 11, color: V('bone-dim'), letterSpacing: '0.05em' }}>H</span>
-        </div>
+        <button
+          onClick={onOpenSettings}
+          aria-label="Edit kit"
+          style={{
+            width: 32, height: 32,
+            border: `1px solid ${V('iron-700')}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: V('bone-dim'),
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.3" />
+            <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6L13 13M3 13l1.4-1.4M11.6 4.4L13 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="square" />
+          </svg>
+        </button>
       </div>
 
       {/* ── DATE STAMP ──────────────────────────────────────── */}

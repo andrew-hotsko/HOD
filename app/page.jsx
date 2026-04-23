@@ -135,6 +135,9 @@ export default function App() {
     setScreen('today');
   };
 
+  const handleOpenSettings = () => setScreen('settings');
+  const handleSettingsDone = () => setScreen('today');
+
   const handleRepeatYesterday = useCallback(() => {
     if (!yesterdayRecord) return;
     handleStart(yesterdayRecord.params, yesterdayRecord.workout);
@@ -172,6 +175,10 @@ export default function App() {
           <OnboardingScreen onDone={handleOnboardingDone} />
         )}
 
+        {screen === 'settings' && (
+          <OnboardingScreen mode="edit" onDone={handleSettingsDone} onCancel={handleSettingsDone} />
+        )}
+
         {screen === 'today' && (
           <>
             <TodayScreen
@@ -180,6 +187,7 @@ export default function App() {
               onOpenDay={handleOpenDetail}
               yesterdayRecord={yesterdayRecord}
               onRepeatYesterday={handleRepeatYesterday}
+              onOpenSettings={handleOpenSettings}
             />
             <InstallPrompt />
           </>
