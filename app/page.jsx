@@ -13,9 +13,11 @@ import {
   saveWorkoutRecord, loadWorkoutRecord, updateWorkoutRating,
   getCachedWorkout, setCachedWorkout,
   loadEquipment, isOnboarded, setOnboarded, todayISO,
-  loadRecentWorkoutSummaries,
+  loadRecentWorkoutSummaries, loadProfile,
 } from '@/lib/storage';
 import OnboardingScreen from '@/components/OnboardingScreen';
+import ProfileScreen from '@/components/ProfileScreen';
+import SettingsScreen from '@/components/SettingsScreen';
 import HistoryDetailScreen from '@/components/HistoryDetailScreen';
 import InstallPrompt from '@/components/InstallPrompt';
 
@@ -47,7 +49,7 @@ export default function App() {
     setHistoryDates(loadHistoryDates());
     const y = todayISO(new Date(Date.now() - 86400000));
     setYesterdayRecord(loadWorkoutRecord(y));
-    if (!isOnboarded()) setScreen('onboarding');
+    if (!isOnboarded()) setScreen('onboarding-profile');
   }, []);
 
   const history14 = buildHistory14(historyDates);
@@ -78,6 +80,7 @@ export default function App() {
           duration: params.duration,
           equipment: loadEquipment(),
           recentHistory: loadRecentWorkoutSummaries(7),
+          profile: loadProfile(),
         }),
       });
 
@@ -132,13 +135,17 @@ export default function App() {
     updateWorkoutRating(todayISO(), rating);
   };
 
+  const handleProfileOnboardingNext = () => setScreen('onboarding-equipment');
   const handleOnboardingDone = () => {
     setOnboarded(true);
     setScreen('today');
   };
 
   const handleOpenSettings = () => setScreen('settings');
-  const handleSettingsDone = () => setScreen('today');
+  const handleSettingsClose = () => setScreen('today');
+  const handleSettingsEditProfile = () => setScreen('settings-profile');
+  const handleSettingsEditEquipment = () => setScreen('settings-equipment');
+  const handleBackToSettings = () => setScreen('settings');
 
   const handleRepeatYesterday = useCallback(() => {
     if (!yesterdayRecord) return;
@@ -173,12 +180,28 @@ export default function App() {
   return (
     <main style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: V('ink') }}>
       <div className="hod-screen" style={{ flex: 1 }}>
-        {screen === 'onboarding' && (
+        {screen === 'onboarding-profile' && (
+          <ProfileScreen mode="onboarding" onNext={handleProfileOnboardingNext} />
+        )}
+
+        {screen === 'onboarding-equipment' && (
           <OnboardingScreen onDone={handleOnboardingDone} />
         )}
 
         {screen === 'settings' && (
-          <OnboardingScreen mode="edit" onDone={handleSettingsDone} onCancel={handleSettingsDone} />
+          <SettingsScreen
+            onClose={handleSettingsClose}
+            onEditProfile={handleSettingsEditProfile}
+            onEditEquipment={handleSettingsEditEquipment}
+          />
+        )}
+
+        {screen === 'settings-profile' && (
+          <ProfileScreen mode="edit" onDone={handleBackToSettings} onCancel={handleBackToSettings} />
+        )}
+
+        {screen === 'settings-equipment' && (
+          <OnboardingScreen mode="edit" onDone={handleBackToSettings} onCancel={handleBackToSettings} />
         )}
 
         {screen === 'today' && (

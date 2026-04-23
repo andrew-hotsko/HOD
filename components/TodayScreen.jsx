@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { V, HodLabel, HodTag, HodRule, HodReg, HodMark } from './atoms';
 import { INTENSITIES, STYLES, DURATIONS, generateHOD } from '@/lib/generator';
 import { primeAudio } from '@/lib/audio';
-import { loadEquipment, loadRecentWorkoutSummaries } from '@/lib/storage';
+import { loadEquipment, loadRecentWorkoutSummaries, loadProfile } from '@/lib/storage';
 
 export default function TodayScreen({ onStart, history, onOpenDay, yesterdayRecord, onRepeatYesterday, onOpenSettings }) {
   const [intensity, setIntensity] = useState('HARD');
@@ -15,9 +15,11 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
   // suggest movements the user doesn't have gear for).
   const [equipment, setEquipment] = useState(null);
   const [recentCount, setRecentCount] = useState(0);
+  const [profileName, setProfileName] = useState('');
   useEffect(() => {
     setEquipment(loadEquipment());
     setRecentCount(loadRecentWorkoutSummaries(7).length);
+    setProfileName((loadProfile().name || '').trim());
   }, []);
   const preview = useMemo(
     () => generateHOD({ intensity, style, duration, equipment }),
@@ -81,7 +83,7 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
           paddingBottom: 14,
         }}>
           <div className="hod-label" style={{ color: V('phos-400'), fontSize: 10 }}>
-            ORDERS FOR
+            ORDERS FOR{profileName ? ` · ${profileName.toUpperCase()}` : ''}
           </div>
           <div style={{ flex: 1 }} />
           <div className="hod-mono" style={{ fontSize: 10, color: V('bone-faint'), letterSpacing: '0.18em' }}>

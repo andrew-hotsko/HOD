@@ -73,6 +73,42 @@ function buildEquipmentList(eq) {
   return kept.join('\n');
 }
 
+const ROLE_RULES = {
+  adult: null, // no additional rules
+  teen:
+    `ATHLETE ROLE: teen (13–17).\n` +
+    `- Keep loads conservative (roughly 60–75% of an adult athlete at the same intensity level)\n` +
+    `- Rep ranges 5+; no max-effort singles, no 1RM attempts\n` +
+    `- Barbell OK, but prioritize form-first compounds (no heavy Olympic singles)\n` +
+    `- Cap intensity at HARD even if the user selected SAVAGE`,
+  kid:
+    `ATHLETE ROLE: kid (8–12).\n` +
+    `- BODYWEIGHT and light-kettlebell only. NO barbell, NO heavy dumbbell, NO overhead loading, NO spinal loading under load.\n` +
+    `- Keep movements fun, varied, and short. Prefer 3–4 movements.\n` +
+    `- Use playful language in headline and description (e.g., "MISSION: 6 ROUNDS" instead of "6 MIN AMRAP", "challenge" instead of "workout").\n` +
+    `- Rep ranges 6–12; no counting-to-failure; no BRUTAL-level intensity regardless of selection.`,
+  postpartum:
+    `ATHLETE ROLE: postpartum.\n` +
+    `- NO high-impact (no jumping, running, burpees, box jumps, jump rope)\n` +
+    `- NO heavy overhead loading; no heavy Olympic lifts\n` +
+    `- Prioritize core rebuilding (diaphragmatic breathing, dead bugs, bird dogs, side planks) and pelvic-floor-safe movements\n` +
+    `- Slower progressions, lighter absolute loads, more rest between sets\n` +
+    `- Cap intensity at STEADY regardless of user selection`,
+};
+
+function formatProfile(profile) {
+  if (!profile || typeof profile !== 'object') return null;
+  const name = (profile.name || '').trim();
+  const role = profile.role || 'adult';
+  const notes = (profile.notes || '').trim();
+  const roleRules = ROLE_RULES[role];
+  const bits = [];
+  if (name) bits.push(`Name: ${name}`);
+  bits.push(`Role: ${role}`);
+  if (notes) bits.push(`Limitations / notes: ${notes}`);
+  return { summary: bits.join('\n'), roleRules };
+}
+
 function formatHistory(recent) {
   if (!Array.isArray(recent) || recent.length === 0) return null;
   const lines = recent.map((r) => {
@@ -93,7 +129,7 @@ function formatHistory(recent) {
 }
 
 export async function POST(request) {
-  const { intensity, style, duration, equipment, recentHistory } = await request.json();
+  const { intensity, style, duration, equipment, recentHistory, profile } = await request.json();
 
   const intense = INTENSITIES.find(i => i.key === intensity);
   const styleDef = STYLES[style];
@@ -118,6 +154,11 @@ export async function POST(request) {
   const validFormats = formatsByStyle[style] || ['AMRAP'];
   const mainMinutes = duration - 8;
 
+  const prof = formatProfile(profile);
+  const profileBlock = prof
+    ? `\nATHLETE PROFILE:\n${prof.summary}\n${prof.roleRules ? `\n${prof.roleRules}\n` : ''}`
+    : '';
+
   const history = formatHistory(recentHistory);
   const historyBlock = history
     ? `\nRECENT TRAINING (last 7 days, most recent first):\n${history.lines}\n\nUse this context when choosing format and movement patterns:\n- Avoid repeating yesterday's dominant pattern (e.g. if yesterday was heavy squats, don't program heavy squats again today).\n- If the last two workouts were rated BRUTAL, ease intensity or choose a format with more built-in rest, even if the user selected ${intensity}.\n- If yesterday was a SETS/strength day, bias today toward conditioning or upper-body-biased work.${history.consecutive >= 4 ? `\n- The user has trained ${history.consecutive} consecutive days — lean toward a lighter/shorter stimulus unless they explicitly chose SAVAGE.` : ''}${history.lastTwoBrutal ? '\n- Two straight BRUTAL ratings is a real signal — prioritize recovery-biased work today.' : ''}\n- Still honor the user's selected intensity (${intensity}) as the primary guide; history nudges the choice of format and movements, not the overall effort level.\n`
@@ -132,8 +173,8 @@ Valid formats for ${style}: ${validFormats.join(', ')}
 
 Available equipment (prescribe ONLY movements that use this kit + bodyweight):
 ${buildEquipmentList(equipment)}
-${historyBlock}
-Pick one format from the valid list. Design a workout appropriate for ${mainMinutes} minutes at ${intensity} intensity. Choose 3–6 movements.`;
+${profileBlock}${historyBlock}
+Pick one format from the valid list. Design a workout appropriate for ${mainMinutes} minutes at ${intensity} intensity (respecting any role rules above). Choose 3–6 movements.`;
 
   try {
     const response = await client.messages.create({
