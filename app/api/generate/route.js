@@ -53,15 +53,16 @@ RULES:
 - Respond ONLY with the raw JSON — no markdown, no explanation`;
 
 const EQUIPMENT_LABELS = {
-  rack:    'Rogue Monster Lite squat rack',
-  barbell: 'Barbell with plate pairs: 10, 25, 35, 45 lb per side',
-  bench:   'Incline/decline bench',
-  bike:    'Rogue Assault Bike',
-  cable:   'Revolt cable pulley',
-  kb:      'Adjustable kettlebell: 8–40 lb',
-  db:      'Adjustable dumbbells: 2.5–52.5 lb pairs',
-  pullup:  'Pull-up bar',
-  vest:    '50 lb weighted vest',
+  rack:     'Rogue Monster Lite squat rack',
+  barbell:  'Barbell with plate pairs: 10, 25, 35, 45 lb per side',
+  bench:    'Incline/decline bench',
+  bike:     'Rogue Assault Bike',
+  cable:    'Revolt cable pulley',
+  kb:       'Adjustable kettlebell: 8–40 lb',
+  db:       'Adjustable dumbbells: 2.5–52.5 lb pairs',
+  pullup:   'Pull-up bar',
+  abstraps: 'Ab straps (attach to pull-up bar — use for hanging leg raises, knee raises, L-sits)',
+  vest:     '50 lb weighted vest',
 };
 
 function buildEquipmentList(eq) {
@@ -172,6 +173,7 @@ export async function POST(request) {
     SEALFIT:      ['CHIPPER', 'EMOM'],
     STRENGTH:     ['SETS'],
     CONDITIONING: ['AMRAP', 'INTERVALS'],
+    CORE:         ['AMRAP', 'TABATA', 'EMOM'],
   };
 
   const validFormats = formatsByStyle[style] || ['AMRAP'];
@@ -194,10 +196,14 @@ export async function POST(request) {
     ? `\nRECENT TRAINING (last 7 days, most recent first):\n${history.lines}\n\nUse this context when choosing format and movement patterns:\n- Avoid repeating yesterday's dominant pattern (e.g. if yesterday was heavy squats, don't program heavy squats again today).\n- If the last two workouts were rated BRUTAL, ease intensity or choose a format with more built-in rest, even if the user selected ${intensity}.\n- If yesterday was a SETS/strength day, bias today toward conditioning or upper-body-biased work.${history.consecutive >= 4 ? `\n- The user has trained ${history.consecutive} consecutive days — lean toward a lighter/shorter stimulus unless they explicitly chose SAVAGE.` : ''}${history.lastTwoBrutal ? '\n- Two straight BRUTAL ratings is a real signal — prioritize recovery-biased work today.' : ''}\n- Still honor the user's selected intensity (${intensity}) as the primary guide; history nudges the choice of format and movements, not the overall effort level.\n`
     : '';
 
+  const styleNote = style === 'CORE'
+    ? '\nThis is a CORE-focused session. Every movement in the main block MUST be a core / abdominal movement — planks, hollow holds, dead bugs, V-ups, hanging knee/leg raises with ab straps, cable crunches, Russian twists, Turkish get-ups, toes-to-bar, etc. NO barbell compounds, NO cardio intervals. Keep the entire block core-only.'
+    : '';
+
   const userPrompt = `Generate a ${duration}-minute ${styleDef.label} workout.
 
 Intensity: ${intensity} — ${intensityDescs[intensity]}
-Style: ${styleDef.label}
+Style: ${styleDef.label}${styleNote}
 Main block duration: ${mainMinutes} minutes (8 min reserved for warmup/cooldown)
 Valid formats for ${style}: ${validFormats.join(', ')}
 

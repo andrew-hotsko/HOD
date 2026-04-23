@@ -13,6 +13,7 @@ const EQUIPMENT_ITEMS = [
   { key: 'kb',      label: 'Kettlebell', note: 'Adjustable 8–40 lb' },
   { key: 'db',      label: 'Dumbbells', note: 'Adjustable 2.5–52.5 lb pairs' },
   { key: 'pullup',  label: 'Pull-up bar' },
+  { key: 'abstraps', label: 'Ab straps', note: 'Hang from the pull-up bar for leg raises, L-sits, knee raises' },
   { key: 'vest',    label: 'Weighted vest', note: '50 lb' },
 ];
 
