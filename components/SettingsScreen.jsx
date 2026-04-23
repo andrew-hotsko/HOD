@@ -2,17 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import { V, HodLabel, HodRule, HodMark } from './atoms';
-import { loadProfile, loadEquipment, ROLE_DEFS, loadFamilyCode } from '@/lib/storage';
+import { loadProfile, loadEquipment, ROLE_DEFS, loadFamilyCode, areQuotesEnabled, setQuotesEnabled } from '@/lib/storage';
 
 export default function SettingsScreen({ onEditProfile, onEditEquipment, onEditFamily, onClose }) {
   const [profile, setProfile] = useState(null);
   const [equipment, setEquipment] = useState(null);
   const [familyCode, setFamilyCode] = useState('');
+  const [quotesOn, setQuotesOn] = useState(true);
 
   useEffect(() => {
     setProfile(loadProfile());
     setEquipment(loadEquipment());
     setFamilyCode(loadFamilyCode());
+    setQuotesOn(areQuotesEnabled());
   }, []);
 
   const profileSummary = profile
@@ -20,6 +22,12 @@ export default function SettingsScreen({ onEditProfile, onEditEquipment, onEditF
     : '—';
   const equipmentCount = equipment ? Object.values(equipment).filter(Boolean).length : 0;
   const familySummary = familyCode ? `LINKED · ${familyCode}` : 'NOT LINKED · TAP TO CONNECT';
+
+  const toggleQuotes = () => {
+    const next = !quotesOn;
+    setQuotesOn(next);
+    setQuotesEnabled(next);
+  };
 
   return (
     <div style={{
@@ -69,8 +77,58 @@ export default function SettingsScreen({ onEditProfile, onEditEquipment, onEditF
           value={familySummary}
           onClick={onEditFamily}
         />
+        <ToggleRow
+          label="QUOTES"
+          on={quotesOn}
+          onText="MOTIVATIONAL LINES SHOWING"
+          offText="SILENCED"
+          onToggle={toggleQuotes}
+        />
       </div>
     </div>
+  );
+}
+
+function ToggleRow({ label, on, onText, offText, onToggle }) {
+  return (
+    <button
+      onClick={onToggle}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 14,
+        padding: '16px 14px',
+        background: V('iron-900'),
+        border: `1px solid ${V('iron-700')}`,
+        textAlign: 'left',
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="hod-mono" style={{ fontSize: 9, color: V('phos-400'), letterSpacing: '0.22em' }}>
+          {label}
+        </div>
+        <div className="hod-display" style={{
+          fontSize: 16, color: V('bone'), letterSpacing: '-0.01em', marginTop: 2,
+        }}>
+          {on ? onText : offText}
+        </div>
+      </div>
+      <div
+        aria-hidden="true"
+        style={{
+          width: 36, height: 20, borderRadius: 10,
+          background: on ? V('phos-500') : V('iron-700'),
+          position: 'relative',
+          transition: 'background 160ms ease',
+          flexShrink: 0,
+        }}
+      >
+        <div style={{
+          position: 'absolute', top: 2, left: on ? 18 : 2,
+          width: 16, height: 16, borderRadius: 8,
+          background: on ? V('ink') : V('bone-faint'),
+          transition: 'left 160ms ease, background 160ms ease',
+        }} />
+      </div>
+    </button>
   );
 }
 

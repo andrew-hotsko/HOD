@@ -20,7 +20,7 @@ function buildWarmupProtocol(eq) {
 // ── WARMUP ────────────────────────────────────────────────
 export function WarmupScreen({ onDone, onSkip }) {
   const [sec, setSec] = useState(300); // 5 min
-  const quote = useMemo(() => randomQuote(), []);
+  const quote = useMemo(() => randomQuote('pre'), []);
   useWakeLock(true);
 
   useEffect(() => {

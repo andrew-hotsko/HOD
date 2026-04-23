@@ -17,7 +17,7 @@ export default function RestScreen({
   const endRef = useRef(Date.now() + duration * 1000);
   const doneRef = useRef(false);
   const [remaining, setRemaining] = useState(duration);
-  const quote = useMemo(() => randomQuote(), []);
+  const quote = useMemo(() => randomQuote('mid'), []);
 
   useEffect(() => {
     const tick = () => {

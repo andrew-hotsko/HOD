@@ -493,7 +493,7 @@ function TimeUpOverlay({ elapsed, round, isAMRAP }) {
 function PauseOverlay({ elapsed, onResume, onExit }) {
   const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
   const ss = String(elapsed % 60).padStart(2, '0');
-  const quote = useMemo(() => randomQuote(), []);
+  const quote = useMemo(() => randomQuote('mid'), []);
   return (
     <div style={{
       position: 'absolute', inset: 0, zIndex: 50,

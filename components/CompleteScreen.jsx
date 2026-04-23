@@ -18,7 +18,7 @@ export default function CompleteScreen({ config, stats, onClose, onRate, onNote 
   const [rating, setRating] = useState(null);
   const [shared, setShared] = useState(false);
   const [notes, setNotes] = useState('');
-  const quote = useMemo(() => randomQuote(), []);
+  const quote = useMemo(() => randomQuote('post'), []);
   const pickRating = (key) => {
     setRating(key);
     onRate?.(key);
