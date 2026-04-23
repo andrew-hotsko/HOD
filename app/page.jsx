@@ -14,7 +14,7 @@ import {
   getCachedWorkout, setCachedWorkout,
   loadEquipment, isOnboarded, setOnboarded, todayISO,
   loadRecentWorkoutSummaries, loadProfile, loadFamilyCode,
-  loadRestDays, addRestDay,
+  loadRestDays, addRestDay, applyProgressionToItems,
 } from '@/lib/storage';
 import OnboardingScreen from '@/components/OnboardingScreen';
 import ProfileScreen from '@/components/ProfileScreen';
@@ -26,6 +26,10 @@ import InstallPrompt from '@/components/InstallPrompt';
 function assembleWorkout(params, apiWorkout) {
   const intense = INTENSITIES.find(i => i.key === params.intensity);
   const styleDef = STYLES[params.style];
+  const progressedMain = {
+    ...apiWorkout.main,
+    items: applyProgressionToItems(apiWorkout.main.items),
+  };
   return {
     date: new Date().toISOString(),
     intensity: intense,
@@ -33,7 +37,7 @@ function assembleWorkout(params, apiWorkout) {
     format: apiWorkout.main.format,
     duration: params.duration,
     warmup: { label: 'WARMUP', duration: 5, note: '5 min — bike easy + dynamic mobility' },
-    main: apiWorkout.main,
+    main: progressedMain,
     finisher: apiWorkout.finisher ?? null,
   };
 }

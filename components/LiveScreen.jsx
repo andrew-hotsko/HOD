@@ -9,6 +9,7 @@ import {
   isAudioMuted, setAudioMuted,
 } from '@/lib/audio';
 import RestScreen from './RestScreen';
+import MovementCueSheet from './MovementCueSheet';
 
 // Formats that end when time runs out (show REMAINING, auto-finish at 0)
 const TIME_BOUNDED = ['AMRAP', 'EMOM', 'TABATA', 'STATIONS', 'INTERVALS', 'BLOCKS'];
@@ -32,6 +33,7 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
   const [items, setItems] = useState(workout.main.items);
   const [timeUp, setTimeUp] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [cueFor, setCueFor] = useState(null);
   const pausedAtRef = useRef(null);
   const startRef = useRef(Date.now());
   const finishedRef = useRef(false);
@@ -288,9 +290,9 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
         onTouchEnd={onTouchEnd}
         style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px 20px 0', overflow: 'hidden', touchAction: 'pan-y' }}
       >
-        {layout === 'clock'    && <ClockLayout    workout={workout} elapsed={elapsed} remaining={remaining} currentItem={currentItem} itemIdx={itemIdx} items={items} />}
-        {layout === 'rounds'   && <RoundsLayout   workout={workout} round={round}     currentItem={currentItem} itemIdx={itemIdx} items={items} />}
-        {layout === 'movement' && <MovementLayout workout={workout}                    currentItem={currentItem} itemIdx={itemIdx} items={items} isLastOnePass={nextWillFinish} setIdx={hasSets ? setIdx : null} totalSets={hasSets ? currentItem.schemeReps.length : null} />}
+        {layout === 'clock'    && <ClockLayout    workout={workout} elapsed={elapsed} remaining={remaining} currentItem={currentItem} itemIdx={itemIdx} items={items} onOpenCue={setCueFor} />}
+        {layout === 'rounds'   && <RoundsLayout   workout={workout} round={round}     currentItem={currentItem} itemIdx={itemIdx} items={items} onOpenCue={setCueFor} />}
+        {layout === 'movement' && <MovementLayout workout={workout}                    currentItem={currentItem} itemIdx={itemIdx} items={items} isLastOnePass={nextWillFinish} setIdx={hasSets ? setIdx : null} totalSets={hasSets ? currentItem.schemeReps.length : null} onOpenCue={setCueFor} />}
       </div>
 
       {/* Footer */}
@@ -354,6 +356,11 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
           </svg>
         </button>
       </div>
+
+      {/* Form cue sheet */}
+      {cueFor && (
+        <MovementCueSheet movementName={cueFor} onClose={() => setCueFor(null)} />
+      )}
 
       {/* Rest overlay (strength sets) */}
       {resting && (
@@ -526,7 +533,7 @@ function PauseOverlay({ elapsed, onResume, onExit }) {
 }
 
 // ── CLOCK LAYOUT (EMOM / TABATA) ─────────────────────────
-function ClockLayout({ workout, elapsed, remaining, currentItem }) {
+function ClockLayout({ workout, elapsed, remaining, currentItem, onOpenCue }) {
   const secInMin = elapsed % 60;
   const minLeft = 59 - secInMin;
   const totalMinLeft = Math.ceil(remaining / 60);
@@ -553,9 +560,7 @@ function ClockLayout({ workout, elapsed, remaining, currentItem }) {
       </div>
       <div style={{ marginTop: 'auto', padding: '24px 0 12px', borderTop: `1px solid ${V('iron-700')}` }}>
         <HodLabel style={{ marginBottom: 8 }}>NOW ON</HodLabel>
-        <div className="hod-display" style={{ fontSize: 34, color: V('bone'), lineHeight: 1, letterSpacing: '-0.01em' }}>
-          {currentItem.name}
-        </div>
+        <MovementNameButton name={currentItem.name} onClick={onOpenCue} fontSize={34} />
         <div style={{ display: 'flex', gap: 14, marginTop: 8 }}>
           <div className="hod-mono" style={{ fontSize: 13, color: V('bone-dim') }}>
             {currentItem.reps ? `${currentItem.reps} ${currentItem.unit}` : currentItem.unit}
@@ -571,8 +576,35 @@ function ClockLayout({ workout, elapsed, remaining, currentItem }) {
   );
 }
 
+function MovementNameButton({ name, onClick, fontSize = 44, color }) {
+  if (!onClick) {
+    return (
+      <div className="hod-display" style={{
+        fontSize, lineHeight: 0.95, color: color || V('bone'),
+        letterSpacing: '-0.02em',
+      }}>{name}</div>
+    );
+  }
+  return (
+    <button
+      onClick={() => onClick(name)}
+      className="hod-display"
+      style={{
+        fontSize, lineHeight: 0.95, color: color || V('bone'),
+        letterSpacing: '-0.02em', textAlign: 'left', padding: 0,
+        background: 'transparent', border: 'none',
+        display: 'inline-flex', alignItems: 'baseline', gap: 8,
+      }}
+      aria-label={`Show form cue for ${name}`}
+    >
+      {name}
+      <span className="hod-mono" style={{ fontSize: 9, color: V('bone-faint'), letterSpacing: '0.22em' }}>?</span>
+    </button>
+  );
+}
+
 // ── ROUNDS LAYOUT (AMRAP) ────────────────────────────────
-function RoundsLayout({ workout, round, currentItem, itemIdx, items }) {
+function RoundsLayout({ workout, round, currentItem, itemIdx, items, onOpenCue }) {
   return (
     <>
       <div style={{ textAlign: 'center', marginTop: 8 }}>
@@ -594,9 +626,7 @@ function RoundsLayout({ workout, round, currentItem, itemIdx, items }) {
           <HodLabel>NOW</HodLabel>
           <HodLabel style={{ color: V('bone-faint') }}>{itemIdx + 1}/{items.length}</HodLabel>
         </div>
-        <div className="hod-display" style={{ fontSize: 34, color: V('bone'), lineHeight: 1, letterSpacing: '-0.01em' }}>
-          {currentItem.name}
-        </div>
+        <MovementNameButton name={currentItem.name} onClick={onOpenCue} fontSize={34} />
         <div style={{ display: 'flex', gap: 14, marginTop: 8 }}>
           <div className="hod-mono" style={{ fontSize: 13, color: V('bone-dim') }}>
             {currentItem.reps ? `${currentItem.reps} ${currentItem.unit}` : currentItem.unit}
@@ -621,7 +651,7 @@ function RoundsLayout({ workout, round, currentItem, itemIdx, items }) {
 }
 
 // ── MOVEMENT LAYOUT (FORTIME / SETS / CHIPPER) ───────────
-function MovementLayout({ workout, currentItem, itemIdx, items, isLastOnePass, setIdx, totalSets }) {
+function MovementLayout({ workout, currentItem, itemIdx, items, isLastOnePass, setIdx, totalSets, onOpenCue }) {
   const hasSets = setIdx != null && totalSets != null;
   const reps = hasSets
     ? `${currentItem.schemeReps[setIdx]}`
@@ -640,11 +670,8 @@ function MovementLayout({ workout, currentItem, itemIdx, items, isLastOnePass, s
             <HodLabel style={{ color: V('phos-300'), marginTop: 8 }}>· LAST ONE</HodLabel>
           )}
         </div>
-        <div className="hod-display" style={{
-          fontSize: 44, lineHeight: 0.95, marginTop: 10,
-          color: V('bone'), letterSpacing: '-0.02em',
-        }}>
-          {currentItem.name}
+        <div style={{ marginTop: 10 }}>
+          <MovementNameButton name={currentItem.name} onClick={onOpenCue} fontSize={44} />
         </div>
 
         {/* Progress pips — sets for strength, items for one-pass */}
@@ -689,6 +716,14 @@ function MovementLayout({ workout, currentItem, itemIdx, items, isLastOnePass, s
             <div className="hod-display hod-mono" style={{ fontSize: 32, color: V('bone'), lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
               {currentItem.load}
             </div>
+            {currentItem.progression && (
+              <div className="hod-mono" style={{
+                fontSize: 9, color: currentItem.progression.deltaLb > 0 ? V('phos-400') : V('alert'),
+                letterSpacing: '0.18em', marginTop: 4,
+              }}>
+                {currentItem.progression.reason} · {currentItem.progression.deltaLb > 0 ? '+' : ''}{currentItem.progression.deltaLb} LB
+              </div>
+            )}
           </div>
         )}
       </div>
