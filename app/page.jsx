@@ -93,6 +93,7 @@ export default function App() {
           recentHistory: loadRecentWorkoutSummaries(7),
           profile: loadProfile(),
           tweaks: Array.isArray(params.tweaks) ? params.tweaks : [],
+          partnerMode: !!params.partnerMode,
         }),
       });
 
@@ -244,6 +245,7 @@ export default function App() {
           duration: params.duration,
         },
         headline: workout?.main?.headline || '',
+        partnered: !!params.partnerMode,
       }),
     }).catch(() => {});
   }

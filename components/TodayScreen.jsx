@@ -20,6 +20,7 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
   const [style, setStyle] = useState('CROSSFIT');
   const [duration, setDuration] = useState(30);
   const [tweaks, setTweaks] = useState([]);
+  const [partnerMode, setPartnerMode] = useState(false);
   const [confirmRest, setConfirmRest] = useState(false);
 
   // Live preview using the JS generator (equipment-aware so we never
@@ -68,7 +69,7 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
 
   const handleStart = () => {
     primeAudio();
-    onStart({ intensity, style, duration, tweaks });
+    onStart({ intensity, style, duration, tweaks, partnerMode });
   };
 
   const handleStartFamilyWod = () => {
@@ -79,6 +80,7 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
       style: familyWod.params.style,
       duration: familyWod.params.duration,
       tweaks,
+      partnerMode: !!familyWod.partnered,
     });
   };
 
@@ -315,7 +317,7 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
         </div>
 
         {/* ── TWEAKS (today-only body signals) ─────────── */}
-        <div style={{ marginTop: 18, marginBottom: 16 }}>
+        <div style={{ marginTop: 18 }}>
           <HodLabel style={{ marginBottom: 10 }}>
             ANY TWEAKS TODAY?{tweaks.length > 0 && <span style={{ color: V('alert'), marginLeft: 6 }}>· {tweaks.length}</span>}
           </HodLabel>
@@ -336,6 +338,45 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
               AI WILL AVOID AGGRAVATING MOVEMENTS
             </div>
           )}
+        </div>
+
+        {/* ── PARTNER MODE ─────────────────────────────── */}
+        <div style={{ marginTop: 18, marginBottom: 16 }}>
+          <HodLabel style={{ marginBottom: 10 }}>PARTNER MODE</HodLabel>
+          <button
+            onClick={() => setPartnerMode(!partnerMode)}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+              padding: '12px 12px',
+              background: partnerMode ? V('iron-800') : 'transparent',
+              border: `1px solid ${partnerMode ? V('phos-500') : V('iron-700')}`,
+              textAlign: 'left',
+              transition: 'all 140ms ease',
+            }}
+          >
+            <div style={{
+              width: 14, height: 14, borderRadius: 7,
+              border: `1px solid ${partnerMode ? V('phos-500') : V('iron-600')}`,
+              background: partnerMode ? V('phos-500') : 'transparent',
+              flexShrink: 0,
+            }} />
+            <div style={{ flex: 1 }}>
+              <div className="hod-display" style={{
+                fontSize: 14, color: partnerMode ? V('bone') : V('bone-dim'),
+                letterSpacing: '-0.01em',
+              }}>
+                {partnerMode ? '2-PERSON WORKOUT' : 'SOLO WORKOUT'}
+              </div>
+              <div className="hod-mono" style={{
+                fontSize: 9, color: V('bone-faint'),
+                letterSpacing: '0.18em', marginTop: 2,
+              }}>
+                {partnerMode
+                  ? 'AI PICKS A "YOU GO I GO" FORMAT'
+                  : 'TAP IF WORKING OUT WITH SOMEONE'}
+              </div>
+            </div>
+          </button>
         </div>
       </div>
 
@@ -533,11 +574,11 @@ function WeeklyStrip({ stats }) {
 }
 
 function FamilyWodCard({ wod, onStart }) {
-  const { author, params, headline } = wod;
+  const { author, params, headline, partnered } = wod;
   return (
     <div style={{ marginBottom: 20 }}>
       <HodLabel style={{ color: V('phos-400'), marginBottom: 8 }}>
-        · FAMILY WOD · FROM {author ? author.toUpperCase() : 'FAMILY'}
+        · {partnered ? 'PARTNER WOD' : 'FAMILY WOD'} · FROM {author ? author.toUpperCase() : 'FAMILY'}
       </HodLabel>
       <button
         onClick={onStart}

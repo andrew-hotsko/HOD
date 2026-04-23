@@ -25,6 +25,7 @@ export async function POST(request) {
   const author = String(body.author || '').slice(0, 30);
   const params = body.params || {};
   const headline = String(body.headline || '').slice(0, 80);
+  const partnered = !!body.partnered;
   if (!code || !date || !params.intensity || !params.style || !params.duration) {
     return Response.json({ ok: false, reason: 'bad-request' }, { status: 400 });
   }
@@ -39,6 +40,7 @@ export async function POST(request) {
       duration: Number(params.duration) || 30,
     },
     headline,
+    partnered,
   };
 
   const key = `hod:wod:${code}:${date}`;
