@@ -128,8 +128,23 @@ function formatHistory(recent) {
   return { lines: lines.join('\n'), consecutive, lastTwoBrutal };
 }
 
+const TWEAK_AVOID = {
+  shoulder: 'overhead pressing, overhead squats, handstand work, heavy snatches, jerks, weighted pull-ups',
+  knee:     'deep squats under load, heavy lunges, jumping lunges, box jumps, pistol squats',
+  lowback:  'heavy deadlifts, bent-over rows, kettlebell swings at high reps, weighted sit-ups, heavy cleans',
+  wrist:    'front rack holds, heavy push-ups, heavy presses, burpees to push-up, handstand work',
+  hip:      'heavy hip hinge, deep squats, high-volume kettlebell swings, box jumps',
+  neck:     'front squats (front rack), overhead loading, heavy rowing, burpees',
+};
+
+function formatTweaks(tweaks) {
+  if (!Array.isArray(tweaks) || tweaks.length === 0) return null;
+  const lines = tweaks.map((t) => `- ${t.toUpperCase()}: avoid ${TWEAK_AVOID[t] || 'movements that stress this area'}`);
+  return `TODAY'S BODY SIGNALS (this session only — swap movements that would aggravate these):\n${lines.join('\n')}`;
+}
+
 export async function POST(request) {
-  const { intensity, style, duration, equipment, recentHistory, profile } = await request.json();
+  const { intensity, style, duration, equipment, recentHistory, profile, tweaks } = await request.json();
 
   const intense = INTENSITIES.find(i => i.key === intensity);
   const styleDef = STYLES[style];
@@ -159,6 +174,11 @@ export async function POST(request) {
     ? `\nATHLETE PROFILE:\n${prof.summary}\n${prof.roleRules ? `\n${prof.roleRules}\n` : ''}`
     : '';
 
+  const tweaksBlock = (() => {
+    const t = formatTweaks(tweaks);
+    return t ? `\n${t}\n` : '';
+  })();
+
   const history = formatHistory(recentHistory);
   const historyBlock = history
     ? `\nRECENT TRAINING (last 7 days, most recent first):\n${history.lines}\n\nUse this context when choosing format and movement patterns:\n- Avoid repeating yesterday's dominant pattern (e.g. if yesterday was heavy squats, don't program heavy squats again today).\n- If the last two workouts were rated BRUTAL, ease intensity or choose a format with more built-in rest, even if the user selected ${intensity}.\n- If yesterday was a SETS/strength day, bias today toward conditioning or upper-body-biased work.${history.consecutive >= 4 ? `\n- The user has trained ${history.consecutive} consecutive days — lean toward a lighter/shorter stimulus unless they explicitly chose SAVAGE.` : ''}${history.lastTwoBrutal ? '\n- Two straight BRUTAL ratings is a real signal — prioritize recovery-biased work today.' : ''}\n- Still honor the user's selected intensity (${intensity}) as the primary guide; history nudges the choice of format and movements, not the overall effort level.\n`
@@ -173,8 +193,8 @@ Valid formats for ${style}: ${validFormats.join(', ')}
 
 Available equipment (prescribe ONLY movements that use this kit + bodyweight):
 ${buildEquipmentList(equipment)}
-${profileBlock}${historyBlock}
-Pick one format from the valid list. Design a workout appropriate for ${mainMinutes} minutes at ${intensity} intensity (respecting any role rules above). Choose 3–6 movements.`;
+${profileBlock}${tweaksBlock}${historyBlock}
+Pick one format from the valid list. Design a workout appropriate for ${mainMinutes} minutes at ${intensity} intensity (respecting any role rules and body signals above). Choose 3–6 movements.`;
 
   try {
     const response = await client.messages.create({

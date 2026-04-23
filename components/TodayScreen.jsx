@@ -6,10 +6,21 @@ import { INTENSITIES, STYLES, DURATIONS, generateHOD } from '@/lib/generator';
 import { primeAudio } from '@/lib/audio';
 import { loadEquipment, loadRecentWorkoutSummaries, loadProfile, loadFamilyCode, todayISO } from '@/lib/storage';
 
-export default function TodayScreen({ onStart, history, onOpenDay, yesterdayRecord, onRepeatYesterday, onOpenSettings }) {
+const TWEAK_OPTIONS = [
+  { key: 'shoulder', label: 'SHOULDER' },
+  { key: 'knee',     label: 'KNEE' },
+  { key: 'lowback',  label: 'LOW BACK' },
+  { key: 'wrist',    label: 'WRIST' },
+  { key: 'hip',      label: 'HIP' },
+  { key: 'neck',     label: 'NECK' },
+];
+
+export default function TodayScreen({ onStart, history, onOpenDay, yesterdayRecord, onRepeatYesterday, onOpenSettings, onMarkRestDay, todayIsDone, todayIsRestDay }) {
   const [intensity, setIntensity] = useState('HARD');
   const [style, setStyle] = useState('CROSSFIT');
   const [duration, setDuration] = useState(30);
+  const [tweaks, setTweaks] = useState([]);
+  const [confirmRest, setConfirmRest] = useState(false);
 
   // Live preview using the JS generator (equipment-aware so we never
   // suggest movements the user doesn't have gear for).
@@ -55,7 +66,7 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
 
   const handleStart = () => {
     primeAudio();
-    onStart({ intensity, style, duration });
+    onStart({ intensity, style, duration, tweaks });
   };
 
   const handleStartFamilyWod = () => {
@@ -65,7 +76,12 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
       intensity: familyWod.params.intensity,
       style: familyWod.params.style,
       duration: familyWod.params.duration,
+      tweaks,
     });
+  };
+
+  const toggleTweak = (key) => {
+    setTweaks((prev) => prev.includes(key) ? prev.filter(t => t !== key) : [...prev, key]);
   };
 
   return (
@@ -275,7 +291,7 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
         </div>
 
         {/* ── DURATION PICKER ────────────────────────────── */}
-        <div style={{ marginTop: 18, marginBottom: 16 }}>
+        <div style={{ marginTop: 18 }}>
           <HodLabel style={{ marginBottom: 10 }}>DURATION</HodLabel>
           <div style={{ display: 'flex', gap: 6 }}>
             {DURATIONS.map(d => (
@@ -291,6 +307,30 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
             ))}
           </div>
         </div>
+
+        {/* ── TWEAKS (today-only body signals) ─────────── */}
+        <div style={{ marginTop: 18, marginBottom: 16 }}>
+          <HodLabel style={{ marginBottom: 10 }}>
+            ANY TWEAKS TODAY?{tweaks.length > 0 && <span style={{ color: V('alert'), marginLeft: 6 }}>· {tweaks.length}</span>}
+          </HodLabel>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {TWEAK_OPTIONS.map(t => (
+              <HodTag
+                key={t.key}
+                selected={tweaks.includes(t.key)}
+                onClick={() => toggleTweak(t.key)}
+                compact
+              >
+                {t.label}
+              </HodTag>
+            ))}
+          </div>
+          {tweaks.length > 0 && (
+            <div className="hod-mono" style={{ fontSize: 10, color: V('bone-faint'), letterSpacing: '0.18em', marginTop: 6 }}>
+              AI WILL AVOID AGGRAVATING MOVEMENTS
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── BEGIN HOD BUTTON ────────────────────────────────── */}
@@ -300,6 +340,57 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
         background: `linear-gradient(to top, ${V('ink')} 60%, transparent)`,
       }}>
         <StartButton onClick={handleStart} />
+        {onMarkRestDay && !todayIsDone && !todayIsRestDay && (
+          <div style={{ textAlign: 'center', marginTop: 10 }}>
+            {!confirmRest ? (
+              <button
+                onClick={() => setConfirmRest(true)}
+                className="hod-mono"
+                style={{
+                  fontSize: 10, color: V('bone-faint'), letterSpacing: '0.22em',
+                  background: 'transparent', border: 'none', padding: '6px 10px',
+                }}
+              >
+                · OR MARK TODAY AS REST DAY
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center' }}>
+                <span className="hod-mono" style={{ fontSize: 10, color: V('bone-dim'), letterSpacing: '0.18em' }}>
+                  STREAK STAYS INTACT.
+                </span>
+                <button
+                  onClick={() => { onMarkRestDay(); setConfirmRest(false); }}
+                  className="hod-mono"
+                  style={{
+                    fontSize: 10, letterSpacing: '0.22em', fontWeight: 600,
+                    color: V('ink'), background: V('phos-500'),
+                    border: `1px solid ${V('phos-500')}`, padding: '6px 12px',
+                  }}
+                >
+                  CONFIRM REST
+                </button>
+                <button
+                  onClick={() => setConfirmRest(false)}
+                  className="hod-mono"
+                  style={{
+                    fontSize: 10, letterSpacing: '0.22em',
+                    color: V('bone-faint'), background: 'transparent',
+                    border: `1px solid ${V('iron-700')}`, padding: '6px 10px',
+                  }}
+                >
+                  CANCEL
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {todayIsRestDay && (
+          <div style={{ textAlign: 'center', marginTop: 10 }}>
+            <span className="hod-mono" style={{ fontSize: 10, color: V('phos-400'), letterSpacing: '0.22em' }}>
+              · REST DAY LOGGED · STREAK PRESERVED
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -512,7 +603,17 @@ export function HistoryStrip({ history, onOpenDay }) {
       </div>
       <div style={{ display: 'flex', gap: 3 }}>
         {days.map((d, i) => {
-          const clickable = d.done && onOpenDay;
+          const clickable = d.done && !d.isRest && onOpenDay;
+          // Rest-only day: phosphor outline with a dashed inner stripe (not filled)
+          // Workout day: solid phosphor fill
+          // Today with nothing: phosphor dashed inset
+          // Past empty: iron outline
+          const border = d.isToday
+            ? V('phos-400')
+            : d.done
+              ? V('phos-500')
+              : V('iron-700');
+          const bg = d.done && !d.isRest ? V('phos-500') : 'transparent';
           return (
             <button
               key={i}
@@ -523,16 +624,23 @@ export function HistoryStrip({ history, onOpenDay }) {
                 background: 'transparent', padding: 0,
                 cursor: clickable ? 'pointer' : 'default',
               }}
-              aria-label={clickable ? `Open workout detail for ${d.iso}` : undefined}
+              aria-label={clickable ? `Open workout detail for ${d.iso}` : d.isRest ? `Rest day on ${d.iso}` : undefined}
             >
               <div style={{
                 width: '100%', aspectRatio: '1', maxWidth: 20,
-                background: d.done ? V('phos-500') : 'transparent',
-                border: `1px solid ${d.isToday ? V('phos-400') : d.done ? V('phos-500') : V('iron-700')}`,
+                background: bg,
+                border: `1px solid ${border}`,
                 position: 'relative',
               }}>
                 {d.isToday && !d.done && (
                   <div style={{ position: 'absolute', inset: 3, border: `1px dashed ${V('phos-400')}` }} />
+                )}
+                {d.isRest && !d.isToday && (
+                  <div style={{
+                    position: 'absolute', inset: 2,
+                    borderTop: `1px dashed ${V('phos-500')}`,
+                    borderBottom: `1px dashed ${V('phos-500')}`,
+                  }} />
                 )}
               </div>
               <span className="hod-mono" style={{ fontSize: 8, color: d.isToday ? V('phos-400') : V('iron-500'), letterSpacing: '0.1em' }}>

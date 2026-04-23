@@ -14,6 +14,7 @@ import {
   getCachedWorkout, setCachedWorkout,
   loadEquipment, isOnboarded, setOnboarded, todayISO,
   loadRecentWorkoutSummaries, loadProfile, loadFamilyCode,
+  loadRestDays, addRestDay,
 } from '@/lib/storage';
 import OnboardingScreen from '@/components/OnboardingScreen';
 import ProfileScreen from '@/components/ProfileScreen';
@@ -42,18 +43,23 @@ export default function App() {
   const [config, setConfig] = useState(null);
   const [stats, setStats] = useState(null);
   const [historyDates, setHistoryDates] = useState([]);
+  const [restDays, setRestDays] = useState([]);
   const [detailDate, setDetailDate] = useState(null);
   const [yesterdayRecord, setYesterdayRecord] = useState(null);
   const fetchingRef = useRef(false);
 
   useEffect(() => {
     setHistoryDates(loadHistoryDates());
+    setRestDays(loadRestDays());
     const y = todayISO(new Date(Date.now() - 86400000));
     setYesterdayRecord(loadWorkoutRecord(y));
     if (!isOnboarded()) setScreen('onboarding-profile');
   }, []);
 
-  const history14 = buildHistory14(historyDates);
+  const history14 = buildHistory14(historyDates, restDays);
+  const todayIso = todayISO();
+  const todayIsRestDay = restDays.includes(todayIso);
+  const todayIsDone = historyDates.includes(todayIso);
 
   const handleStart = useCallback(async (params, preloaded = null) => {
     setConfig({ ...params, workout: preloaded });
@@ -82,6 +88,7 @@ export default function App() {
           equipment: loadEquipment(),
           recentHistory: loadRecentWorkoutSummaries(7),
           profile: loadProfile(),
+          tweaks: Array.isArray(params.tweaks) ? params.tweaks : [],
         }),
       });
 
@@ -155,6 +162,36 @@ export default function App() {
     if (!yesterdayRecord) return;
     handleStart(yesterdayRecord.params, yesterdayRecord.workout);
   }, [handleStart, yesterdayRecord]);
+
+  const handleMarkRestDay = useCallback(() => {
+    const iso = todayISO();
+    addRestDay(iso);
+    setRestDays((prev) => prev.includes(iso) ? prev : [...prev, iso]);
+    setHistoryDates((prev) => prev.includes(iso) ? prev : [...prev, iso]);
+    // Post to family feed as a rest-day entry
+    const code = loadFamilyCode();
+    if (code) {
+      const profile = loadProfile();
+      fetch('/api/feed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code,
+          item: {
+            name: (profile.name || '').trim(),
+            role: profile.role,
+            headline: 'REST DAY',
+            style: 'REST',
+            format: 'REST',
+            duration: 0,
+            elapsed: 0,
+            rating: null,
+            isPR: false,
+          },
+        }),
+      }).catch(() => {});
+    }
+  }, []);
 
   const handleOpenDetail = (iso) => {
     setDetailDate(iso);
@@ -266,6 +303,9 @@ export default function App() {
               yesterdayRecord={yesterdayRecord}
               onRepeatYesterday={handleRepeatYesterday}
               onOpenSettings={handleOpenSettings}
+              onMarkRestDay={handleMarkRestDay}
+              todayIsDone={todayIsDone}
+              todayIsRestDay={todayIsRestDay}
             />
             <InstallPrompt />
           </>
