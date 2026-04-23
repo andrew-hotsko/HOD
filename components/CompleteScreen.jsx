@@ -66,8 +66,13 @@ export default function CompleteScreen({ config, stats, onClose, onRate }) {
     if (!val || !heavyLift) return;
     const prev = loadPR(heavyLift.name);
     const isPR = !prev || val > prev.load;
-    if (isPR) savePR(heavyLift.name, { load: val, reps, date: new Date().toISOString().split('T')[0] });
-    setLogged({ isPR, value: val });
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    if (isPR) {
+      const saved = savePR(heavyLift.name, { load: val, reps, date: todayStr });
+      setPreviousPR(saved);
+    }
+    setLogged({ isPR, value: val, prevLoad: prev?.load ?? null });
   };
 
 
@@ -214,12 +219,12 @@ export default function CompleteScreen({ config, stats, onClose, onRate }) {
             )}
             {logged?.isPR && (
               <div className="hod-mono" style={{ fontSize: 10, color: V('phos-400'), letterSpacing: '0.22em', marginTop: 6 }}>
-                + {previousPR ? `${logged.value - previousPR.load} LB OVER PREV` : 'FIRST LOGGED PR'}
+                + {logged.prevLoad != null ? `${logged.value - logged.prevLoad} LB OVER PREV` : 'FIRST LOGGED PR'}
               </div>
             )}
-            {logged && !logged.isPR && previousPR && (
+            {logged && !logged.isPR && logged.prevLoad != null && (
               <div className="hod-mono" style={{ fontSize: 10, color: V('bone-faint'), letterSpacing: '0.2em', marginTop: 6 }}>
-                LOGGED · PR HOLDS AT {previousPR.load} LB
+                LOGGED · PR HOLDS AT {logged.prevLoad} LB
               </div>
             )}
           </>

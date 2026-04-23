@@ -3,6 +3,17 @@
 import { useState, useEffect } from 'react';
 import { V, HodLabel, HodButton, HodMark } from './atoms';
 import { useWakeLock } from '@/lib/wakelock';
+import { loadEquipment } from '@/lib/storage';
+
+function buildWarmupProtocol(eq) {
+  const items = [];
+  items.push(eq.bike  ? 'Assault Bike — 2 min easy' : 'Jumping jacks — 2 min');
+  items.push("World's greatest stretch ×6");
+  items.push(eq.pullup ? 'Scap pull-ups ×10' : 'Band pull-aparts ×15');
+  items.push('Air squats ×15');
+  items.push(eq.barbell ? 'Empty bar warmup' : eq.db ? 'Light DB complex ×10' : 'Push-up + reach ×10');
+  return items;
+}
 
 // ── WARMUP ────────────────────────────────────────────────
 export function WarmupScreen({ onDone, onSkip }) {
@@ -18,13 +29,14 @@ export function WarmupScreen({ onDone, onSkip }) {
   const mm = String(Math.floor(sec / 60)).padStart(2, '0');
   const ss = String(sec % 60).padStart(2, '0');
 
-  const items = [
-    "Assault Bike — 2 min easy",
+  const [items, setItems] = useState([
+    'Assault Bike — 2 min easy',
     "World's greatest stretch ×6",
-    "Scap pull-ups ×10",
-    "Air squats ×15",
-    "Empty bar warmup",
-  ];
+    'Scap pull-ups ×10',
+    'Air squats ×15',
+    'Empty bar warmup',
+  ]);
+  useEffect(() => { setItems(buildWarmupProtocol(loadEquipment())); }, []);
 
   return (
     <div style={{

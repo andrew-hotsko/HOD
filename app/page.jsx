@@ -92,6 +92,7 @@ export default function App() {
         intensity: params.intensity,
         style: params.style,
         duration: params.duration,
+        equipment: loadEquipment(),
       });
       setConfig(prev => ({ ...prev, workout }));
       setCachedWorkout(params, workout);

@@ -4,16 +4,20 @@ import { useState, useEffect, useMemo } from 'react';
 import { V, HodLabel, HodTag, HodRule, HodReg, HodMark } from './atoms';
 import { INTENSITIES, STYLES, DURATIONS, generateHOD } from '@/lib/generator';
 import { primeAudio } from '@/lib/audio';
+import { loadEquipment } from '@/lib/storage';
 
 export default function TodayScreen({ onStart, history, onOpenDay, yesterdayRecord, onRepeatYesterday }) {
   const [intensity, setIntensity] = useState('HARD');
   const [style, setStyle] = useState('CROSSFIT');
   const [duration, setDuration] = useState(30);
 
-  // Live preview using the JS generator
+  // Live preview using the JS generator (equipment-aware so we never
+  // suggest movements the user doesn't have gear for).
+  const [equipment, setEquipment] = useState(null);
+  useEffect(() => { setEquipment(loadEquipment()); }, []);
   const preview = useMemo(
-    () => generateHOD({ intensity, style, duration }),
-    [intensity, style, duration]
+    () => generateHOD({ intensity, style, duration, equipment }),
+    [intensity, style, duration, equipment]
   );
 
   const today = new Date();

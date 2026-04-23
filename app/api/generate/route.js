@@ -151,7 +151,7 @@ Pick one format from the valid list. Design a workout appropriate for ${mainMinu
   } catch (err) {
     console.error('API generation failed, using JS fallback:', err);
     // Fallback to deterministic JS generator
-    const workout = generateHOD({ intensity, style, duration });
+    const workout = generateHOD({ intensity, style, duration, equipment });
     return Response.json({ workout, fallback: true });
   }
 }
