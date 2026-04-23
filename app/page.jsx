@@ -91,6 +91,7 @@ export default function App() {
       const workout = assembleWorkout(params, data.workout);
       setConfig(prev => ({ ...prev, workout }));
       setCachedWorkout(params, workout);
+      publishFamilyWod(params, workout);
     } catch (err) {
       console.error('Workout generation failed:', err);
       const { generateHOD } = await import('@/lib/generator');
@@ -102,6 +103,7 @@ export default function App() {
       });
       setConfig(prev => ({ ...prev, workout }));
       setCachedWorkout(params, workout);
+      publishFamilyWod(params, workout);
     } finally {
       fetchingRef.current = false;
     }
@@ -179,6 +181,27 @@ export default function App() {
       postToFamilyFeed(config, finalStats);
     }
   };
+
+  function publishFamilyWod(params, workout) {
+    const code = loadFamilyCode();
+    if (!code) return;
+    const profile = loadProfile();
+    fetch('/api/wod', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code,
+        date: todayISO(),
+        author: (profile.name || '').trim(),
+        params: {
+          intensity: params.intensity,
+          style: params.style,
+          duration: params.duration,
+        },
+        headline: workout?.main?.headline || '',
+      }),
+    }).catch(() => {});
+  }
 
   function postToFamilyFeed(cfg, finalStats) {
     const code = loadFamilyCode();

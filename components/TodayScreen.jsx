@@ -17,16 +17,27 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
   const [recentCount, setRecentCount] = useState(0);
   const [profileName, setProfileName] = useState('');
   const [familyFeed, setFamilyFeed] = useState(null); // null = not loaded / no code; [] = loaded empty
+  const [familyWod, setFamilyWod] = useState(null);
   useEffect(() => {
     setEquipment(loadEquipment());
     setRecentCount(loadRecentWorkoutSummaries(7).length);
-    setProfileName((loadProfile().name || '').trim());
+    const name = (loadProfile().name || '').trim();
+    setProfileName(name);
     const code = loadFamilyCode();
     if (code) {
       fetch(`/api/feed?code=${encodeURIComponent(code)}`)
         .then((r) => r.ok ? r.json() : { items: [] })
         .then((data) => setFamilyFeed(Array.isArray(data.items) ? data.items : []))
         .catch(() => setFamilyFeed([]));
+      const today = todayISO();
+      fetch(`/api/wod?code=${encodeURIComponent(code)}&date=${today}`)
+        .then((r) => r.ok ? r.json() : { wod: null })
+        .then((data) => {
+          if (data.wod && data.wod.author && data.wod.author !== name) {
+            setFamilyWod(data.wod);
+          }
+        })
+        .catch(() => {});
     }
   }, []);
   const preview = useMemo(
@@ -45,6 +56,16 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
   const handleStart = () => {
     primeAudio();
     onStart({ intensity, style, duration });
+  };
+
+  const handleStartFamilyWod = () => {
+    if (!familyWod?.params) return;
+    primeAudio();
+    onStart({
+      intensity: familyWod.params.intensity,
+      style: familyWod.params.style,
+      duration: familyWod.params.duration,
+    });
   };
 
   return (
@@ -129,6 +150,10 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
 
         {familyFeed && familyFeed.length > 0 && (
           <FamilyFeedStrip items={familyFeed} />
+        )}
+
+        {familyWod && (
+          <FamilyWodCard wod={familyWod} onStart={handleStartFamilyWod} />
         )}
 
         {yesterdayRecord && onRepeatYesterday && (
@@ -358,6 +383,57 @@ function timeAgo(ts) {
   if (h < 24) return `${h}h ago`;
   const d = Math.floor(h / 24);
   return `${d}d ago`;
+}
+
+function FamilyWodCard({ wod, onStart }) {
+  const { author, params, headline } = wod;
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <HodLabel style={{ color: V('phos-400'), marginBottom: 8 }}>
+        · FAMILY WOD · FROM {author ? author.toUpperCase() : 'FAMILY'}
+      </HodLabel>
+      <button
+        onClick={onStart}
+        style={{
+          width: '100%',
+          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '14px 14px',
+          background: V('iron-900'),
+          border: `2px solid ${V('phos-500')}`,
+          boxShadow: `0 0 20px -4px var(--phos-glow)`,
+          textAlign: 'left',
+        }}
+      >
+        <div style={{
+          width: 36, height: 36, flexShrink: 0,
+          background: V('phos-500'),
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M9 2v14M2 9h14" stroke={V('ink')} strokeWidth="2.5" strokeLinecap="square" />
+          </svg>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="hod-display" style={{
+            fontSize: 18, color: V('bone'), letterSpacing: '-0.01em',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>
+            {headline || `${params.style} · ${params.duration} MIN`}
+          </div>
+          <div className="hod-mono" style={{
+            fontSize: 10, color: V('bone-faint'), letterSpacing: '0.18em', marginTop: 3,
+          }}>
+            {params.style.toUpperCase()} · {params.intensity} · {params.duration} MIN · SCALED FOR YOU
+          </div>
+        </div>
+        <span className="hod-mono" style={{
+          fontSize: 10, color: V('phos-400'), letterSpacing: '0.22em', fontWeight: 600,
+        }}>
+          DO IT →
+        </span>
+      </button>
+    </div>
+  );
 }
 
 function FamilyFeedStrip({ items }) {
