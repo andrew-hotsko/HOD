@@ -1,4 +1,5 @@
 import './globals.css';
+import RegisterSW from '@/components/RegisterSW';
 
 export const metadata = {
   title: 'HOD — Hotsko of the Day',
@@ -26,7 +27,10 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="theme-color" content="#050605" />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <RegisterSW />
+      </body>
     </html>
   );
 }
