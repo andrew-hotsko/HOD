@@ -2,21 +2,24 @@
 
 import { useEffect, useState } from 'react';
 import { V, HodLabel, HodRule, HodMark } from './atoms';
-import { loadProfile, loadEquipment, ROLE_DEFS } from '@/lib/storage';
+import { loadProfile, loadEquipment, ROLE_DEFS, loadFamilyCode } from '@/lib/storage';
 
-export default function SettingsScreen({ onEditProfile, onEditEquipment, onClose }) {
+export default function SettingsScreen({ onEditProfile, onEditEquipment, onEditFamily, onClose }) {
   const [profile, setProfile] = useState(null);
   const [equipment, setEquipment] = useState(null);
+  const [familyCode, setFamilyCode] = useState('');
 
   useEffect(() => {
     setProfile(loadProfile());
     setEquipment(loadEquipment());
+    setFamilyCode(loadFamilyCode());
   }, []);
 
   const profileSummary = profile
     ? `${profile.name || '(unnamed)'} · ${ROLE_DEFS[profile.role]?.label ?? 'Adult'}`
     : '—';
   const equipmentCount = equipment ? Object.values(equipment).filter(Boolean).length : 0;
+  const familySummary = familyCode ? `LINKED · ${familyCode}` : 'NOT LINKED · TAP TO CONNECT';
 
   return (
     <div style={{
@@ -60,6 +63,11 @@ export default function SettingsScreen({ onEditProfile, onEditEquipment, onClose
           label="KIT"
           value={`${equipmentCount} ${equipmentCount === 1 ? 'ITEM' : 'ITEMS'} AVAILABLE`}
           onClick={onEditEquipment}
+        />
+        <Row
+          label="FAMILY"
+          value={familySummary}
+          onClick={onEditFamily}
         />
       </div>
     </div>

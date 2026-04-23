@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { V, HodLabel, HodTag, HodRule, HodReg, HodMark } from './atoms';
 import { INTENSITIES, STYLES, DURATIONS, generateHOD } from '@/lib/generator';
 import { primeAudio } from '@/lib/audio';
-import { loadEquipment, loadRecentWorkoutSummaries, loadProfile } from '@/lib/storage';
+import { loadEquipment, loadRecentWorkoutSummaries, loadProfile, loadFamilyCode, todayISO } from '@/lib/storage';
 
 export default function TodayScreen({ onStart, history, onOpenDay, yesterdayRecord, onRepeatYesterday, onOpenSettings }) {
   const [intensity, setIntensity] = useState('HARD');
@@ -16,10 +16,18 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
   const [equipment, setEquipment] = useState(null);
   const [recentCount, setRecentCount] = useState(0);
   const [profileName, setProfileName] = useState('');
+  const [familyFeed, setFamilyFeed] = useState(null); // null = not loaded / no code; [] = loaded empty
   useEffect(() => {
     setEquipment(loadEquipment());
     setRecentCount(loadRecentWorkoutSummaries(7).length);
     setProfileName((loadProfile().name || '').trim());
+    const code = loadFamilyCode();
+    if (code) {
+      fetch(`/api/feed?code=${encodeURIComponent(code)}`)
+        .then((r) => r.ok ? r.json() : { items: [] })
+        .then((data) => setFamilyFeed(Array.isArray(data.items) ? data.items : []))
+        .catch(() => setFamilyFeed([]));
+    }
   }, []);
   const preview = useMemo(
     () => generateHOD({ intensity, style, duration, equipment }),
@@ -118,6 +126,10 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
       <div style={{ padding: '24px 20px 0', flex: 1, overflowY: 'auto' }} className="hod-no-scrollbar">
 
         <HistoryStrip history={history} onOpenDay={onOpenDay} />
+
+        {familyFeed && familyFeed.length > 0 && (
+          <FamilyFeedStrip items={familyFeed} />
+        )}
 
         {yesterdayRecord && onRepeatYesterday && (
           <button
@@ -333,6 +345,69 @@ function StartButton({ onClick }) {
         <div style={{ width: 12, height: 1, background: V('ink') }} />
       </div>
     </button>
+  );
+}
+
+function timeAgo(ts) {
+  const now = Date.now();
+  const diff = Math.max(0, now - ts);
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+
+function FamilyFeedStrip({ items }) {
+  const today = todayISO();
+  const todayItems = items.filter((it) => {
+    const d = new Date(it.ts || 0);
+    return todayISO(d) === today;
+  });
+  const shown = (todayItems.length > 0 ? todayItems : items).slice(0, 4);
+  const headerLabel = todayItems.length > 0
+    ? `· TODAY IN THE GARAGE · ${todayItems.length} DONE`
+    : '· RECENT FAMILY ACTIVITY';
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <HodLabel style={{ color: V('phos-400'), marginBottom: 8 }}>{headerLabel}</HodLabel>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {shown.map((it, i) => (
+          <div
+            key={it.id || i}
+            style={{
+              display: 'flex', alignItems: 'baseline', gap: 8,
+              padding: '8px 10px',
+              background: V('iron-900'),
+              border: `1px solid ${V('iron-700')}`,
+            }}
+          >
+            <span style={{
+              width: 6, height: 6, background: V('phos-500'),
+              boxShadow: `0 0 6px var(--phos-glow)`, flexShrink: 0,
+              alignSelf: 'center',
+            }} />
+            <span className="hod-display" style={{
+              fontSize: 13, color: V('bone'), letterSpacing: '-0.01em',
+            }}>
+              {(it.name || 'Someone').toUpperCase()}
+            </span>
+            <span className="hod-mono" style={{
+              flex: 1, fontSize: 11, color: V('bone-dim'),
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>
+              · {it.headline || 'workout'} {it.elapsed ? `· ${String(Math.floor(it.elapsed / 60)).padStart(2, '0')}:${String(it.elapsed % 60).padStart(2, '0')}` : ''}
+            </span>
+            <span className="hod-mono" style={{ fontSize: 10, color: V('bone-faint'), letterSpacing: '0.1em', flexShrink: 0 }}>
+              {timeAgo(it.ts || Date.now())}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

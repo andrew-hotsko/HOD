@@ -13,11 +13,12 @@ import {
   saveWorkoutRecord, loadWorkoutRecord, updateWorkoutRating,
   getCachedWorkout, setCachedWorkout,
   loadEquipment, isOnboarded, setOnboarded, todayISO,
-  loadRecentWorkoutSummaries, loadProfile,
+  loadRecentWorkoutSummaries, loadProfile, loadFamilyCode,
 } from '@/lib/storage';
 import OnboardingScreen from '@/components/OnboardingScreen';
 import ProfileScreen from '@/components/ProfileScreen';
 import SettingsScreen from '@/components/SettingsScreen';
+import FamilyCodeScreen from '@/components/FamilyCodeScreen';
 import HistoryDetailScreen from '@/components/HistoryDetailScreen';
 import InstallPrompt from '@/components/InstallPrompt';
 
@@ -145,6 +146,7 @@ export default function App() {
   const handleSettingsClose = () => setScreen('today');
   const handleSettingsEditProfile = () => setScreen('settings-profile');
   const handleSettingsEditEquipment = () => setScreen('settings-equipment');
+  const handleSettingsEditFamily = () => setScreen('settings-family');
   const handleBackToSettings = () => setScreen('settings');
 
   const handleRepeatYesterday = useCallback(() => {
@@ -174,8 +176,31 @@ export default function App() {
         stats: finalStats || null,
         rating: null,
       });
+      postToFamilyFeed(config, finalStats);
     }
   };
+
+  function postToFamilyFeed(cfg, finalStats) {
+    const code = loadFamilyCode();
+    if (!code) return;
+    const profile = loadProfile();
+    const item = {
+      name: (profile.name || '').trim(),
+      role: profile.role,
+      headline: cfg.workout?.main?.headline || '',
+      style: cfg.workout?.style?.label || cfg.style || '',
+      format: cfg.workout?.main?.format || '',
+      duration: cfg.duration,
+      elapsed: finalStats?.elapsed || 0,
+      rating: null,
+      isPR: false,
+    };
+    fetch('/api/feed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, item }),
+    }).catch(() => {});
+  }
 
   return (
     <main style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: V('ink') }}>
@@ -193,6 +218,7 @@ export default function App() {
             onClose={handleSettingsClose}
             onEditProfile={handleSettingsEditProfile}
             onEditEquipment={handleSettingsEditEquipment}
+            onEditFamily={handleSettingsEditFamily}
           />
         )}
 
@@ -202,6 +228,10 @@ export default function App() {
 
         {screen === 'settings-equipment' && (
           <OnboardingScreen mode="edit" onDone={handleBackToSettings} onCancel={handleBackToSettings} />
+        )}
+
+        {screen === 'settings-family' && (
+          <FamilyCodeScreen onDone={handleBackToSettings} onCancel={handleBackToSettings} />
         )}
 
         {screen === 'today' && (
