@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { V, HodLabel, HodButton, HodRule, HodStat, HodMark } from './atoms';
+import { loadPR, savePR } from '@/lib/storage';
 
 const RATINGS = [
   { key: 'easy',   label: 'EASY',   color: 'bone' },
@@ -45,6 +46,28 @@ export default function CompleteScreen({ config, stats, onClose, onRate }) {
       setShared(true);
       setTimeout(() => setShared(false), 2000);
     } catch {}
+  };
+
+  // PR logging — only for SETS format, items[0] is always the heavy lift
+  const isSets = config.workout.main.format === 'SETS';
+  const heavyLift = isSets ? config.workout.main.items[0] : null;
+  const reps = heavyLift?.schemeReps?.[0] ?? null;
+  const suggestedNum = heavyLift?.load ? parseInt(String(heavyLift.load).match(/\d+/)?.[0] ?? '0', 10) : 0;
+  const [liftInput, setLiftInput] = useState(suggestedNum ? String(suggestedNum) : '');
+  const [previousPR, setPreviousPR] = useState(null);
+  const [logged, setLogged] = useState(null); // { isPR: bool, value: num }
+
+  useEffect(() => {
+    if (heavyLift) setPreviousPR(loadPR(heavyLift.name));
+  }, [heavyLift?.name]);
+
+  const logLift = () => {
+    const val = parseInt(liftInput, 10);
+    if (!val || !heavyLift) return;
+    const prev = loadPR(heavyLift.name);
+    const isPR = !prev || val > prev.load;
+    if (isPR) savePR(heavyLift.name, { load: val, reps, date: new Date().toISOString().split('T')[0] });
+    setLogged({ isPR, value: val });
   };
 
 
@@ -128,6 +151,79 @@ export default function CompleteScreen({ config, stats, onClose, onRate }) {
           <HodStat label="DURATION" value={config.duration} unit="MIN" size="sm" />
           <HodStat label="INTENSITY" value={config.workout.intensity.label.toUpperCase()} size="sm" accent />
         </div>
+
+        {heavyLift && (
+          <>
+            <HodRule ticks style={{ margin: '28px 0 14px' }} />
+            <HodLabel style={{ marginBottom: 10 }}>
+              LOG LIFT · {heavyLift.name.toUpperCase()}
+            </HodLabel>
+            <div style={{
+              display: 'flex', alignItems: 'stretch', gap: 10,
+              border: `1px solid ${logged?.isPR ? V('phos-500') : V('iron-700')}`,
+              background: V('iron-900'),
+              padding: 10,
+              transition: 'border-color 200ms ease',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={liftInput}
+                  onChange={(e) => { setLiftInput(e.target.value); setLogged(null); }}
+                  placeholder="0"
+                  className="hod-display hod-mono"
+                  style={{
+                    flex: 1, minWidth: 0,
+                    fontSize: 32, color: V('bone'),
+                    background: 'transparent', border: 'none', outline: 'none',
+                    fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em',
+                    padding: '4px 6px',
+                  }}
+                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <span className="hod-label" style={{ color: V('bone-faint'), fontSize: 9 }}>LB</span>
+                  {reps && (
+                    <span className="hod-mono" style={{ fontSize: 9, color: V('bone-faint'), letterSpacing: '0.18em' }}>
+                      ×{reps}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={logLift}
+                disabled={!liftInput || parseInt(liftInput, 10) === 0}
+                className="hod-mono"
+                style={{
+                  padding: '0 16px',
+                  fontSize: 11, letterSpacing: '0.22em', fontWeight: 600,
+                  background: logged?.isPR ? V('phos-500') : V('ink'),
+                  color: logged?.isPR ? V('ink') : V('bone'),
+                  border: `1px solid ${logged?.isPR ? V('phos-500') : V('iron-700')}`,
+                  transition: 'all 200ms ease',
+                  opacity: (!liftInput || parseInt(liftInput, 10) === 0) ? 0.4 : 1,
+                }}
+              >
+                {logged?.isPR ? 'NEW PR' : logged ? 'LOGGED' : 'LOG'}
+              </button>
+            </div>
+            {previousPR && !logged && (
+              <div className="hod-mono" style={{ fontSize: 10, color: V('bone-faint'), letterSpacing: '0.2em', marginTop: 6 }}>
+                PREV PR · {previousPR.load} LB · {previousPR.date}
+              </div>
+            )}
+            {logged?.isPR && (
+              <div className="hod-mono" style={{ fontSize: 10, color: V('phos-400'), letterSpacing: '0.22em', marginTop: 6 }}>
+                + {previousPR ? `${logged.value - previousPR.load} LB OVER PREV` : 'FIRST LOGGED PR'}
+              </div>
+            )}
+            {logged && !logged.isPR && previousPR && (
+              <div className="hod-mono" style={{ fontSize: 10, color: V('bone-faint'), letterSpacing: '0.2em', marginTop: 6 }}>
+                LOGGED · PR HOLDS AT {previousPR.load} LB
+              </div>
+            )}
+          </>
+        )}
 
         <HodRule ticks style={{ margin: '28px 0 14px' }} />
 
