@@ -4,7 +4,13 @@ import { useState, useEffect } from 'react';
 import { V, HodLabel, HodButton, HodRule, HodMark } from './atoms';
 import { INTENSITIES, STYLES } from '@/lib/generator';
 
-export default function GenerateScreen({ config, onReady }) {
+const NUDGES = [
+  { key: null,       label: '↻ DIFFERENT' },
+  { key: 'easier',   label: 'EASIER' },
+  { key: 'harder',   label: 'HARDER' },
+];
+
+export default function GenerateScreen({ config, onReady, onRegenerate }) {
   // Phases: 0-2 = stamp fields locking, 3 = print workout, 4 = all printed (waiting on user)
   const [phase, setPhase] = useState(0);
   const [printedLines, setPrintedLines] = useState(0);
@@ -178,6 +184,28 @@ export default function GenerateScreen({ config, onReady }) {
             letterSpacing: '0.22em', marginTop: 8,
           }}>
             STUDY THE PLAN · SCROLL IF NEEDED · TAP TO BEGIN
+          </div>
+        )}
+        {ready && onRegenerate && (
+          <div style={{
+            display: 'flex', gap: 6, marginTop: 10, justifyContent: 'center',
+          }}>
+            {NUDGES.map((n) => (
+              <button
+                key={n.label}
+                onClick={() => onRegenerate(n.key)}
+                className="hod-mono"
+                style={{
+                  fontSize: 10, letterSpacing: '0.22em', fontWeight: 600,
+                  color: V('bone-dim'),
+                  background: 'transparent',
+                  border: `1px solid ${V('iron-700')}`,
+                  padding: '8px 12px',
+                }}
+              >
+                {n.label}
+              </button>
+            ))}
           </div>
         )}
       </div>

@@ -152,8 +152,21 @@ const PARTNER_RULES = `THIS IS A 2-PERSON PARTNER WORKOUT. Pick a format where t
 - Shared holds (one holds a plank/hang while the other does reps)
 Headline should make the partner structure obvious (e.g. "18 MIN · YOU GO I GO", "PARTNER 100 BURPEES", "20 MIN ALTERNATING AMRAP"). Description explicitly explains how partners share the work. Movements still follow the equipment and role rules above.`;
 
+const NUDGE_PROMPTS = {
+  easier:   'The user just tapped "EASIER" to regenerate — dial intensity down one notch (fewer reps, lighter suggested loads, more rest). Same style, different movements.',
+  harder:   'The user just tapped "HARDER" to regenerate — push intensity up one notch (more reps, heavier suggested loads, less rest). Same style, different movements.',
+  different:'The user just tapped "DIFFERENT" to regenerate — pick a different format from the valid list and different movements. Keep the same intensity and style.',
+};
+
+function formatNudge(nudge) {
+  if (!nudge) return null;
+  const key = String(nudge).toLowerCase();
+  const rule = NUDGE_PROMPTS[key] || NUDGE_PROMPTS.different;
+  return `REGENERATION REQUEST: ${rule}`;
+}
+
 export async function POST(request) {
-  const { intensity, style, duration, equipment, recentHistory, profile, tweaks, partnerMode } = await request.json();
+  const { intensity, style, duration, equipment, recentHistory, profile, tweaks, partnerMode, regenerateNudge } = await request.json();
 
   const intense = INTENSITIES.find(i => i.key === intensity);
   const styleDef = STYLES[style];
@@ -191,6 +204,11 @@ export async function POST(request) {
 
   const partnerBlock = partnerMode ? `\n${PARTNER_RULES}\n` : '';
 
+  const nudgeBlock = (() => {
+    const n = formatNudge(regenerateNudge);
+    return n ? `\n${n}\n` : '';
+  })();
+
   const history = formatHistory(recentHistory);
   const historyBlock = history
     ? `\nRECENT TRAINING (last 7 days, most recent first):\n${history.lines}\n\nUse this context when choosing format and movement patterns:\n- Avoid repeating yesterday's dominant pattern (e.g. if yesterday was heavy squats, don't program heavy squats again today).\n- If the last two workouts were rated BRUTAL, ease intensity or choose a format with more built-in rest, even if the user selected ${intensity}.\n- If yesterday was a SETS/strength day, bias today toward conditioning or upper-body-biased work.${history.consecutive >= 4 ? `\n- The user has trained ${history.consecutive} consecutive days — lean toward a lighter/shorter stimulus unless they explicitly chose SAVAGE.` : ''}${history.lastTwoBrutal ? '\n- Two straight BRUTAL ratings is a real signal — prioritize recovery-biased work today.' : ''}\n- Still honor the user's selected intensity (${intensity}) as the primary guide; history nudges the choice of format and movements, not the overall effort level.\n`
@@ -209,7 +227,7 @@ Valid formats for ${style}: ${validFormats.join(', ')}
 
 Available equipment (prescribe ONLY movements that use this kit + bodyweight):
 ${buildEquipmentList(equipment)}
-${profileBlock}${tweaksBlock}${partnerBlock}${historyBlock}
+${profileBlock}${tweaksBlock}${partnerBlock}${nudgeBlock}${historyBlock}
 Pick one format from the valid list. Design a workout appropriate for ${mainMinutes} minutes at ${intensity} intensity (respecting any role rules and body signals above). Choose 3–6 movements.`;
 
   try {

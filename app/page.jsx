@@ -50,6 +50,7 @@ export default function App() {
   const [restDays, setRestDays] = useState([]);
   const [detailDate, setDetailDate] = useState(null);
   const [yesterdayRecord, setYesterdayRecord] = useState(null);
+  const [genKey, setGenKey] = useState(0);
   const fetchingRef = useRef(false);
 
   useEffect(() => {
@@ -64,6 +65,40 @@ export default function App() {
   const todayIso = todayISO();
   const todayIsRestDay = restDays.includes(todayIso);
   const todayIsDone = historyDates.includes(todayIso);
+
+  // Shared fetch — used by handleStart (first generation) and handleRegenerate.
+  // Returns an assembled workout; caller is responsible for cache/publish side effects.
+  const fetchWorkout = useCallback(async (params, { nudge = null } = {}) => {
+    try {
+      const resp = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          intensity: params.intensity,
+          style: params.style,
+          duration: params.duration,
+          equipment: loadEquipment(),
+          recentHistory: loadRecentWorkoutSummaries(7),
+          profile: loadProfile(),
+          tweaks: Array.isArray(params.tweaks) ? params.tweaks : [],
+          partnerMode: !!params.partnerMode,
+          regenerateNudge: nudge,
+        }),
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      return assembleWorkout(params, data.workout);
+    } catch (err) {
+      console.error('Workout generation failed, falling back:', err);
+      const { generateHOD } = await import('@/lib/generator');
+      return generateHOD({
+        intensity: params.intensity,
+        style: params.style,
+        duration: params.duration,
+        equipment: loadEquipment(),
+      });
+    }
+  }, []);
 
   const handleStart = useCallback(async (params, preloaded = null) => {
     setConfig({ ...params, workout: preloaded });
@@ -80,46 +115,43 @@ export default function App() {
 
     if (fetchingRef.current) return;
     fetchingRef.current = true;
-
     try {
-      const resp = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          intensity: params.intensity,
-          style: params.style,
-          duration: params.duration,
-          equipment: loadEquipment(),
-          recentHistory: loadRecentWorkoutSummaries(7),
-          profile: loadProfile(),
-          tweaks: Array.isArray(params.tweaks) ? params.tweaks : [],
-          partnerMode: !!params.partnerMode,
-        }),
-      });
-
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
-
-      const workout = assembleWorkout(params, data.workout);
-      setConfig(prev => ({ ...prev, workout }));
-      setCachedWorkout(params, workout);
-      publishFamilyWod(params, workout);
-    } catch (err) {
-      console.error('Workout generation failed:', err);
-      const { generateHOD } = await import('@/lib/generator');
-      const workout = generateHOD({
-        intensity: params.intensity,
-        style: params.style,
-        duration: params.duration,
-        equipment: loadEquipment(),
-      });
+      const workout = await fetchWorkout(params);
       setConfig(prev => ({ ...prev, workout }));
       setCachedWorkout(params, workout);
       publishFamilyWod(params, workout);
     } finally {
       fetchingRef.current = false;
     }
-  }, []);
+  }, [fetchWorkout]);
+
+  // Regenerate from the briefing — wipes the current workout, bumps genKey
+  // to remount GenerateScreen (so the stamp/print animation plays again),
+  // and re-fetches with an optional nudge hint ("different", "easier",
+  // "harder") threaded into the API prompt.
+  const handleRegenerate = useCallback(async (nudge = null) => {
+    if (!config) return;
+    const params = {
+      intensity: config.intensity,
+      style: config.style,
+      duration: config.duration,
+      tweaks: config.tweaks,
+      partnerMode: config.partnerMode,
+    };
+    setGenKey(k => k + 1);
+    setConfig(prev => ({ ...prev, workout: null }));
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+    try {
+      const workout = await fetchWorkout(params, { nudge });
+      setConfig(prev => ({ ...prev, workout }));
+      // Overwrite today's cache with the new one so it sticks
+      setCachedWorkout(params, workout);
+      // Don't re-publish to family WOD on regen — first-writer-wins holds
+    } finally {
+      fetchingRef.current = false;
+    }
+  }, [config, fetchWorkout]);
 
   const handleWarmupDone = () => setScreen('generate');
   const handleWarmupSkip = () => setScreen('generate');
@@ -330,7 +362,7 @@ export default function App() {
         )}
 
         {screen === 'generate' && config && (
-          <GenerateScreen config={config} onReady={handleGenerateReady} />
+          <GenerateScreen key={genKey} config={config} onReady={handleGenerateReady} onRegenerate={handleRegenerate} />
         )}
 
         {screen === 'live' && config?.workout && (
