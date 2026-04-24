@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { V, HodLabel, HodButton } from './atoms';
 import { cueCountdown, cueRestComplete } from '@/lib/audio';
+import { voiceCountdown, voiceRestStart, voiceRestDone } from '@/lib/voice';
 import { Quote } from './Quote';
 import { randomQuote } from '@/lib/quotes';
 
@@ -19,6 +20,9 @@ export default function RestScreen({
   const [remaining, setRemaining] = useState(duration);
   const quote = useMemo(() => randomQuote('mid'), []);
 
+  // Voice cue on rest start
+  useEffect(() => { voiceRestStart(duration); }, [duration]);
+
   useEffect(() => {
     const tick = () => {
       const s = Math.max(0, Math.ceil((endRef.current - Date.now()) / 1000));
@@ -26,6 +30,7 @@ export default function RestScreen({
       if (s === 0 && !doneRef.current) {
         doneRef.current = true;
         cueRestComplete();
+        voiceRestDone();
         onComplete(false);
       }
     };
@@ -35,7 +40,10 @@ export default function RestScreen({
   }, [onComplete]);
 
   useEffect(() => {
-    if (remaining === 3 || remaining === 2 || remaining === 1) cueCountdown();
+    if (remaining === 3 || remaining === 2 || remaining === 1) {
+      cueCountdown();
+      voiceCountdown(remaining);
+    }
   }, [remaining]);
 
   const skip = () => {

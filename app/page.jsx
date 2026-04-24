@@ -20,6 +20,7 @@ import OnboardingScreen from '@/components/OnboardingScreen';
 import ProfileScreen from '@/components/ProfileScreen';
 import SettingsScreen from '@/components/SettingsScreen';
 import FamilyCodeScreen from '@/components/FamilyCodeScreen';
+import VoiceScreen from '@/components/VoiceScreen';
 import HistoryDetailScreen from '@/components/HistoryDetailScreen';
 import InstallPrompt from '@/components/InstallPrompt';
 
@@ -202,6 +203,7 @@ export default function App() {
   const handleSettingsEditProfile = () => setScreen('settings-profile');
   const handleSettingsEditEquipment = () => setScreen('settings-equipment');
   const handleSettingsEditFamily = () => setScreen('settings-family');
+  const handleSettingsEditVoice = () => setScreen('settings-voice');
   const handleBackToSettings = () => setScreen('settings');
 
   const handleRepeatYesterday = useCallback(() => {
@@ -326,6 +328,7 @@ export default function App() {
             onEditProfile={handleSettingsEditProfile}
             onEditEquipment={handleSettingsEditEquipment}
             onEditFamily={handleSettingsEditFamily}
+            onEditVoice={handleSettingsEditVoice}
           />
         )}
 
@@ -339,6 +342,10 @@ export default function App() {
 
         {screen === 'settings-family' && (
           <FamilyCodeScreen onDone={handleBackToSettings} onCancel={handleBackToSettings} />
+        )}
+
+        {screen === 'settings-voice' && (
+          <VoiceScreen onDone={handleBackToSettings} onCancel={handleBackToSettings} />
         )}
 
         {screen === 'today' && (

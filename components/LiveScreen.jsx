@@ -10,6 +10,10 @@ import {
   cueMinuteStart, cueCountdown, cueFinish, cueTap,
   isAudioMuted, setAudioMuted,
 } from '@/lib/audio';
+import {
+  voiceMinute, voiceCountdown, voiceTimeUp, voiceFinish,
+  voicePause, voiceResume, voiceNextMovement,
+} from '@/lib/voice';
 import RestScreen from './RestScreen';
 import MovementCueSheet from './MovementCueSheet';
 
@@ -77,23 +81,38 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
       // Auto-advance to next movement at the top of every minute
       setItemIdx(idx => {
         const n = idx + 1;
-        if (n >= items.length) {
-          setRound(r => r + 1);
-          return 0;
-        }
-        return n;
+        const nextIdx = n >= items.length ? 0 : n;
+        if (n >= items.length) setRound(r => r + 1);
+        // Voice call for the new movement at the top of the minute
+        const upcoming = items[nextIdx];
+        if (upcoming) voiceMinute(upcoming.name, upcoming.reps);
+        return nextIdx;
       });
       setItemsCompleted(n => n + 1);
     }
     if (isTimeBounded && !timeUp) {
       const r = totalSec - elapsed;
-      if (r === 3 || r === 2 || r === 1) cueCountdown();
+      if (r === 3 || r === 2 || r === 1) {
+        cueCountdown();
+        voiceCountdown(r);
+      }
     }
   }, [elapsed, paused, timeUp, format, isTimeBounded, totalSec, items.length]);
 
   useEffect(() => {
-    if (timeUp) cueFinish();
+    if (timeUp) {
+      cueFinish();
+      voiceTimeUp();
+    }
   }, [timeUp]);
+
+  // Voice on pause / resume
+  useEffect(() => {
+    if (!isTimeBounded && !isOnePass) return;
+    if (elapsed === 0) return; // don't speak on initial mount
+    if (paused) voicePause();
+    else voiceResume();
+  }, [paused]);
 
   const finish = (reason) => {
     if (finishedRef.current) return;
@@ -141,18 +160,23 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
 
     if (nextWillFinish) {
       cueFinish();
+      voiceFinish();
       finish('complete');
       return;
     }
     cueTap();
     if (itemIdx < items.length - 1) {
+      const nextItem = items[itemIdx + 1];
       setItemIdx(itemIdx + 1);
       setSetIdx(0);
+      if (nextItem) voiceNextMovement(nextItem.name, nextItem.reps);
     } else {
       // Time-bounded: wrap and increment round
+      const nextItem = items[0];
       setItemIdx(0);
       setSetIdx(0);
       setRound(r => r + 1);
+      if (nextItem) voiceNextMovement(nextItem.name, nextItem.reps);
     }
   };
 

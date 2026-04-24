@@ -3,19 +3,26 @@
 import { useEffect, useState } from 'react';
 import { V, HodLabel, HodRule, HodMark } from './atoms';
 import { loadProfile, loadEquipment, ROLE_DEFS, loadFamilyCode, areQuotesEnabled, setQuotesEnabled } from '@/lib/storage';
+import { loadVoiceSettings } from '@/lib/voice';
 
-export default function SettingsScreen({ onEditProfile, onEditEquipment, onEditFamily, onClose }) {
+export default function SettingsScreen({ onEditProfile, onEditEquipment, onEditFamily, onEditVoice, onClose }) {
   const [profile, setProfile] = useState(null);
   const [equipment, setEquipment] = useState(null);
   const [familyCode, setFamilyCode] = useState('');
   const [quotesOn, setQuotesOn] = useState(true);
+  const [voiceSettings, setVoiceSettings] = useState({ enabled: false, persona: 'neutral' });
 
   useEffect(() => {
     setProfile(loadProfile());
     setEquipment(loadEquipment());
     setFamilyCode(loadFamilyCode());
     setQuotesOn(areQuotesEnabled());
+    setVoiceSettings(loadVoiceSettings());
   }, []);
+
+  const voiceSummary = voiceSettings.enabled
+    ? `ON · ${(voiceSettings.persona || 'neutral').toUpperCase()}`
+    : 'OFF · TAP TO SET UP';
 
   const profileSummary = profile
     ? `${profile.name || '(unnamed)'} · ${ROLE_DEFS[profile.role]?.label ?? 'Adult'}`
@@ -76,6 +83,11 @@ export default function SettingsScreen({ onEditProfile, onEditEquipment, onEditF
           label="FAMILY"
           value={familySummary}
           onClick={onEditFamily}
+        />
+        <Row
+          label="VOICE"
+          value={voiceSummary}
+          onClick={onEditVoice}
         />
         <ToggleRow
           label="QUOTES"
