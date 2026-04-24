@@ -252,15 +252,23 @@ export default function TodayScreen({ onStart, history, onOpenDay, yesterdayReco
           <HodRule ticks style={{ margin: '14px 0 12px' }} />
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {preview.main.items.slice(0, 4).map((item, i) => (
+            {preview.main.items.map((item, i) => (
               <MovementRow key={i} item={item} idx={i} />
             ))}
-            {preview.main.items.length > 4 && (
-              <div className="hod-mono" style={{ fontSize: 11, color: V('bone-faint'), letterSpacing: '0.12em', paddingLeft: 22 }}>
-                + {preview.main.items.length - 4} MORE
-              </div>
-            )}
           </div>
+          {preview.finisher?.note && (
+            <div style={{
+              marginTop: 12, paddingTop: 10,
+              borderTop: `1px dashed ${V('iron-700')}`,
+            }}>
+              <div className="hod-mono" style={{ fontSize: 9, color: V('alert'), letterSpacing: '0.22em', marginBottom: 3 }}>
+                · FINISHER
+              </div>
+              <div style={{ fontFamily: 'var(--f-ui)', fontSize: 12, color: V('bone-dim') }}>
+                {preview.finisher.note}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── INTENSITY PICKER ───────────────────────────── */}

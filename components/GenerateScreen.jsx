@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { V, HodLabel, HodRule, HodMark } from './atoms';
+import { V, HodLabel, HodButton, HodRule, HodMark } from './atoms';
 import { INTENSITIES, STYLES } from '@/lib/generator';
 
 export default function GenerateScreen({ config, onReady }) {
-  // Phases: 0-2 = stamp fields locking, 3 = print workout, 4 = done
+  // Phases: 0-2 = stamp fields locking, 3 = print workout, 4 = all printed (waiting on user)
   const [phase, setPhase] = useState(0);
   const [printedLines, setPrintedLines] = useState(0);
 
@@ -29,24 +29,23 @@ export default function GenerateScreen({ config, onReady }) {
     return () => timers.forEach(clearTimeout);
   }, []);
 
-  // Once in phase 3, print workout lines one by one
+  // Once in phase 3, print workout lines one by one — then STOP.
+  // User controls when to advance to Live by tapping READY · START.
   useEffect(() => {
     if (phase < 3) return;
     const workout = config.workout;
-
-    // If workout not ready yet (still fetching), wait — re-fires when config updates
     if (!workout) return;
-
     const total = workout.main.items.length;
     if (printedLines >= total) {
-      const t = setTimeout(() => onReady(), 650);
-      return () => clearTimeout(t);
+      setPhase(4);
+      return;
     }
-    const t = setTimeout(() => setPrintedLines(n => n + 1), 140);
+    const t = setTimeout(() => setPrintedLines(n => n + 1), 180);
     return () => clearTimeout(t);
   }, [phase, printedLines, config.workout]);
 
   const workout = config.workout;
+  const ready = phase >= 4;
 
   return (
     <div style={{
@@ -55,6 +54,7 @@ export default function GenerateScreen({ config, onReady }) {
       display: 'flex',
       flexDirection: 'column',
       paddingTop: 'max(20px, env(safe-area-inset-top))',
+      overflow: 'hidden',
     }} className="hod-grid-bg">
 
       <div style={{ padding: '12px 20px' }}>
@@ -64,8 +64,8 @@ export default function GenerateScreen({ config, onReady }) {
       {/* LOCKING FIELDS */}
       <div style={{ padding: '20px 20px 0' }}>
         <div className="hod-label" style={{ color: V('phos-400'), marginBottom: 12 }}>
-          · GENERATING HOD
-          <span className="hod-blink" style={{ marginLeft: 6, color: V('phos-500') }}>█</span>
+          {ready ? '· BRIEFING' : '· GENERATING HOD'}
+          {!ready && <span className="hod-blink" style={{ marginLeft: 6, color: V('phos-500') }}>█</span>}
         </div>
 
         {fields.map((f, i) => (
@@ -73,13 +73,17 @@ export default function GenerateScreen({ config, onReady }) {
         ))}
       </div>
 
-      <HodRule ticks style={{ margin: '24px 20px' }} />
+      <HodRule ticks style={{ margin: '20px 20px 12px' }} />
 
-      {/* WORKOUT PRINTOUT */}
-      <div style={{ padding: '0 20px', flex: 1 }}>
+      {/* WORKOUT PRINTOUT — scrollable so long workouts don't clip */}
+      <div
+        className="hod-no-scrollbar"
+        style={{ padding: '0 20px', flex: 1, overflowY: 'auto', minHeight: 0 }}
+      >
         <div style={{
           opacity: phase >= 3 ? 1 : 0.25,
           transition: 'opacity 300ms ease',
+          paddingBottom: 16,
         }}>
           {phase >= 3 && !workout && (
             <div className="hod-label" style={{ color: V('phos-400') }}>
@@ -97,15 +101,23 @@ export default function GenerateScreen({ config, onReady }) {
               }}>
                 {workout.main.headline}
               </div>
+              {workout.main.description && (
+                <div style={{
+                  fontFamily: 'var(--f-ui)', fontSize: 13,
+                  color: V('bone-dim'), marginTop: 6,
+                }}>
+                  {workout.main.description}
+                </div>
+              )}
 
-              <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {workout.main.items.map((item, i) => (
                   <div
                     key={i}
                     style={{
                       opacity: i < printedLines ? 1 : 0,
                       transform: i < printedLines ? 'translateY(0)' : 'translateY(4px)',
-                      transition: 'all 180ms ease',
+                      transition: 'all 220ms ease',
                       display: 'flex', alignItems: 'baseline', gap: 12,
                     }}
                   >
@@ -127,9 +139,47 @@ export default function GenerateScreen({ config, onReady }) {
                   </div>
                 ))}
               </div>
+
+              {workout.finisher?.note && (
+                <div style={{
+                  marginTop: 20, paddingTop: 14,
+                  borderTop: `1px dashed ${V('iron-700')}`,
+                  opacity: ready ? 1 : 0,
+                  transition: 'opacity 300ms ease',
+                }}>
+                  <HodLabel style={{ color: V('alert'), marginBottom: 4 }}>· FINISHER</HodLabel>
+                  <div style={{ fontFamily: 'var(--f-ui)', fontSize: 13, color: V('bone-dim') }}>
+                    {workout.finisher.note}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
+      </div>
+
+      {/* READY BUTTON — user taps when mentally prepped, no more auto-advance */}
+      <div style={{
+        padding: '12px 16px',
+        paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+        background: `linear-gradient(to top, ${V('ink')} 70%, transparent)`,
+      }}>
+        <HodButton
+          onClick={onReady}
+          size="lg"
+          full
+          disabled={!ready}
+        >
+          {ready ? 'READY · START LIVE' : (workout ? 'PRINTING...' : 'GENERATING...')}
+        </HodButton>
+        {ready && (
+          <div className="hod-mono" style={{
+            textAlign: 'center', fontSize: 9, color: V('bone-faint'),
+            letterSpacing: '0.22em', marginTop: 8,
+          }}>
+            STUDY THE PLAN · SCROLL IF NEEDED · TAP TO BEGIN
+          </div>
+        )}
       </div>
     </div>
   );
