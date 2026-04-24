@@ -40,6 +40,7 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
   const [timeUp, setTimeUp] = useState(false);
   const [muted, setMuted] = useState(false);
   const [cueFor, setCueFor] = useState(null);
+  const [bigMode, setBigMode] = useState(false);
   const pausedAtRef = useRef(null);
   const startRef = useRef(Date.now());
   const finishedRef = useRef(false);
@@ -279,6 +280,20 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
             )}
           </button>
           <button
+            onClick={() => setBigMode(true)}
+            aria-label="Enter big display mode"
+            style={{
+              width: 32, height: 28,
+              border: `1px solid ${V('iron-700')}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: V('bone-dim'),
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M1 5V1h4M13 5V1H9M1 9v4h4M13 9v4H9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="square" />
+            </svg>
+          </button>
+          <button
             onClick={() => finish('manual')}
             className="hod-mono"
             style={{
@@ -383,6 +398,31 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
         </button>
       </div>
 
+      {/* BIG DISPLAY mode — prop phone on rack, readable from across the garage */}
+      {bigMode && (
+        <BigDisplayOverlay
+          workout={workout}
+          currentItem={currentItem}
+          items={items}
+          itemIdx={itemIdx}
+          setIdx={setIdx}
+          hasSets={hasSets}
+          round={round}
+          elapsed={elapsed}
+          remaining={remaining}
+          isTimeBounded={isTimeBounded}
+          format={format}
+          paused={paused}
+          timeUp={timeUp}
+          nextWillFinish={nextWillFinish}
+          isLastSet={isLastSet}
+          onNext={next}
+          onPause={() => setPaused(true)}
+          onResume={() => setPaused(false)}
+          onExit={() => setBigMode(false)}
+        />
+      )}
+
       {/* Form cue sheet */}
       {cueFor && (
         <MovementCueSheet movementName={cueFor} onClose={() => setCueFor(null)} />
@@ -438,6 +478,218 @@ export default function LiveScreen({ config, onFinish, onExit, variant = 'adapti
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── BIG DISPLAY OVERLAY ─────────────────────────────────
+// Full-viewport takeover for when the phone is propped on the rack. Timer,
+// movement, and reps/load sized so you can read them from 8–10 ft away.
+// Respects the existing paused/timeUp state (those overlays still render
+// on top via their normal z-index layers).
+function BigDisplayOverlay({
+  workout, currentItem, items, itemIdx, setIdx, hasSets, round,
+  elapsed, remaining, isTimeBounded, format, paused, timeUp,
+  nextWillFinish, isLastSet,
+  onNext, onPause, onResume, onExit,
+}) {
+  const t = isTimeBounded ? remaining : elapsed;
+  const mm = String(Math.floor(t / 60)).padStart(2, '0');
+  const ss = String(t % 60).padStart(2, '0');
+  const timerLabel = isTimeBounded ? 'REMAINING' : 'ELAPSED';
+  const urgent = isTimeBounded && remaining > 0 && remaining <= 10;
+
+  // For EMOM, show seconds-left-in-minute instead of the total clock as the hero
+  const isEMOM = format === 'EMOM';
+  const secInMin = elapsed % 60;
+  const minLeft = 59 - secInMin;
+
+  const reps = hasSets
+    ? `${currentItem?.schemeReps?.[setIdx] ?? ''}`
+    : currentItem?.schemeReps
+      ? currentItem.schemeReps.join('-')
+      : currentItem?.reps ? `${currentItem.reps}` : '';
+  const repUnit = (currentItem?.unit || 'reps').toUpperCase();
+
+  const nextBtnLabel = nextWillFinish
+    ? 'FINISH'
+    : (hasSets && !isLastSet) ? 'REST' : 'NEXT';
+
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 70,
+      background: V('ink'),
+      display: 'flex', flexDirection: 'column',
+      paddingTop: 'max(20px, env(safe-area-inset-top))',
+      paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
+    }} className="hod-scanlines">
+
+      {/* Top strip: label + EXIT */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '8px 20px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 10, height: 10, borderRadius: '50%', background: V('alert'),
+            boxShadow: `0 0 12px var(--alert)`,
+            animation: 'hod-pulse 1.4s ease-in-out infinite',
+          }} />
+          <span className="hod-label" style={{ color: V('alert'), letterSpacing: '0.24em', fontSize: 12 }}>LIVE</span>
+          <span className="hod-mono" style={{ fontSize: 12, color: V('bone-faint'), letterSpacing: '0.2em', marginLeft: 4 }}>
+            {workout.main.label}
+          </span>
+        </div>
+        <button
+          onClick={onExit}
+          aria-label="Exit big display mode"
+          className="hod-mono"
+          style={{
+            fontSize: 11, color: V('bone-faint'), letterSpacing: '0.22em',
+            border: `1px solid ${V('iron-700')}`, padding: '8px 14px',
+          }}
+        >
+          EXIT BIG ↗
+        </button>
+      </div>
+
+      {/* The timer — hero element */}
+      <div style={{
+        flex: 1, display: 'flex', flexDirection: 'column',
+        justifyContent: 'center', alignItems: 'center',
+        padding: '0 16px',
+      }}>
+        <div className="hod-label" style={{
+          color: urgent ? V('alert') : V('phos-400'),
+          letterSpacing: '0.32em', fontSize: 14, marginBottom: 8,
+        }}>
+          · {isEMOM ? 'SECONDS LEFT IN MINUTE' : timerLabel}
+        </div>
+        {isEMOM ? (
+          <div className="hod-display hod-mono" style={{
+            fontSize: 260, lineHeight: 0.85, fontWeight: 700,
+            color: minLeft <= 5 ? V('alert') : V('phos-400'),
+            fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.05em',
+            textShadow: minLeft <= 5
+              ? '0 0 50px rgba(230, 57, 70, 0.5)'
+              : '0 0 50px var(--phos-glow)',
+          }}>
+            {String(minLeft).padStart(2, '0')}
+          </div>
+        ) : (
+          <div className="hod-display hod-mono" style={{
+            fontSize: 180, lineHeight: 0.85,
+            color: urgent ? V('alert') : V('phos-400'),
+            fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.04em',
+            textShadow: urgent
+              ? '0 0 50px rgba(230, 57, 70, 0.5)'
+              : '0 0 50px var(--phos-glow)',
+          }}>
+            {mm}:{ss}
+          </div>
+        )}
+
+        {isEMOM && (
+          <div className="hod-mono" style={{
+            fontSize: 14, color: V('bone-faint'), letterSpacing: '0.2em', marginTop: 10,
+          }}>
+            {Math.ceil(remaining / 60)} MIN LEFT · ROUND {round}
+          </div>
+        )}
+        {!isEMOM && round > 1 && (
+          <div className="hod-mono" style={{
+            fontSize: 14, color: V('bone-faint'), letterSpacing: '0.2em', marginTop: 10,
+          }}>
+            ROUND {round}
+          </div>
+        )}
+      </div>
+
+      {/* Movement + reps */}
+      <div style={{
+        padding: '14px 20px',
+        borderTop: `1px solid ${V('iron-700')}`,
+        borderBottom: `1px solid ${V('iron-700')}`,
+        background: V('iron-950'),
+      }}>
+        <div className="hod-label" style={{ color: V('phos-400'), fontSize: 11, marginBottom: 4 }}>
+          {hasSets ? `SET ${setIdx + 1} OF ${currentItem?.schemeReps?.length}` : `NOW · ${itemIdx + 1}/${items.length}`}
+        </div>
+        <div className="hod-display" style={{
+          fontSize: 48, color: V('bone'), letterSpacing: '-0.02em', lineHeight: 1,
+        }}>
+          {currentItem?.name || '—'}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginTop: 8 }}>
+          {reps && (
+            <div className="hod-display hod-mono" style={{
+              fontSize: 48, color: V('phos-400'),
+              fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', lineHeight: 1,
+              textShadow: '0 0 20px var(--phos-glow)',
+            }}>
+              {reps}
+              <span className="hod-mono" style={{ fontSize: 14, color: V('bone-faint'), letterSpacing: '0.18em', marginLeft: 8 }}>
+                {repUnit}
+              </span>
+            </div>
+          )}
+          {currentItem?.load && currentItem.load !== '—' && (
+            <div className="hod-display hod-mono" style={{
+              marginLeft: 'auto',
+              fontSize: 32, color: V('bone'),
+              fontVariantNumeric: 'tabular-nums', lineHeight: 1,
+            }}>
+              {currentItem.load}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer action row */}
+      <div style={{
+        padding: '14px 16px 6px',
+        display: 'flex', gap: 10,
+      }}>
+        <button
+          onClick={paused ? onResume : onPause}
+          style={{
+            width: 72, height: 60,
+            background: 'transparent',
+            border: `1px solid ${V('iron-700')}`,
+            color: V('bone'),
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          aria-label={paused ? 'Resume' : 'Pause'}
+        >
+          {paused ? (
+            <svg width="22" height="22" viewBox="0 0 22 22">
+              <path d="M4 3l15 8L4 19V3z" fill={V('bone')} />
+            </svg>
+          ) : (
+            <svg width="22" height="26" viewBox="0 0 22 24">
+              <rect x="2" y="2" width="7" height="20" fill={V('bone')} />
+              <rect x="13" y="2" width="7" height="20" fill={V('bone')} />
+            </svg>
+          )}
+        </button>
+        <button
+          onClick={onNext}
+          style={{
+            flex: 1, height: 60,
+            background: nextWillFinish ? V('phos-300') : V('phos-500'),
+            color: V('ink'),
+            border: `1px solid ${V('phos-400')}`,
+            fontFamily: 'var(--f-display)',
+            fontSize: 22, letterSpacing: '0.24em', fontWeight: 700,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+          }}
+        >
+          {nextBtnLabel}
+          <svg width="18" height="18" viewBox="0 0 14 14">
+            <path d="M1 7h12M8 2l5 5-5 5" fill="none" stroke={V('ink')} strokeWidth="2" strokeLinecap="square" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }
