@@ -30,13 +30,18 @@ function assembleWorkout(params, apiWorkout) {
     ...apiWorkout.main,
     items: applyProgressionToItems(apiWorkout.main.items),
   };
+  // Prefer AI-tailored warmup if present; otherwise keep the fallback shape
+  // (WarmupScreen will synthesize one locally if items is missing).
+  const warmup = apiWorkout.warmup && Array.isArray(apiWorkout.warmup.items) && apiWorkout.warmup.items.length
+    ? { label: 'WARMUP', duration: 5, note: apiWorkout.warmup.note || 'Prime for today', items: apiWorkout.warmup.items }
+    : { label: 'WARMUP', duration: 5, note: '5 min — bike easy + dynamic mobility' };
   return {
     date: new Date().toISOString(),
     intensity: intense,
     style: { key: params.style, ...styleDef },
     format: apiWorkout.main.format,
     duration: params.duration,
-    warmup: { label: 'WARMUP', duration: 5, note: '5 min — bike easy + dynamic mobility' },
+    warmup,
     main: progressedMain,
     finisher: apiWorkout.finisher ?? null,
   };
@@ -358,7 +363,7 @@ export default function App() {
         )}
 
         {screen === 'warmup' && (
-          <WarmupScreen onDone={handleWarmupDone} onSkip={handleWarmupSkip} />
+          <WarmupScreen onDone={handleWarmupDone} onSkip={handleWarmupSkip} workout={config?.workout} />
         )}
 
         {screen === 'generate' && config && (

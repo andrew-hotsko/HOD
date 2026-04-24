@@ -14,10 +14,15 @@ AVAILABLE EQUIPMENT:
 - Adjustable kettlebell: 8–40 lb
 - Adjustable dumbbells: 2.5–52.5 lb pairs
 - Pull-up bar
+- Ab straps (attach to pull-up bar)
 - 50 lb weighted vest
 
 Generate a single workout as a JSON object with this exact structure:
 {
+  "warmup": {
+    "note": string,       // one-line summary, e.g. "5 min — prime legs and shoulders"
+    "items": [string]     // 4–6 short warmup movement strings (see WARMUP RULES)
+  },
   "main": {
     "label": string,
     "headline": string,
@@ -42,7 +47,16 @@ Generate a single workout as a JSON object with this exact structure:
   } | null
 }
 
-RULES:
+WARMUP RULES (tailor to today's main block):
+- 4–6 items, about 5 minutes total
+- First item: general cardio prime (Assault Bike / Jump Rope / Jumping Jacks) — 1–2 min
+- Middle items: mobility + activation for the movement patterns in the main block (e.g., if main has squats, include bodyweight squats or goblet squats; if main has pulls, include scap pull-ups or band pull-aparts)
+- Last item: movement rehearsal — light version or ramp-up of a main exercise (e.g., "Empty Bar Back Squat ×5", "Light KB Swings ×10")
+- Each item is one short string: "Movement — duration" OR "Movement ×N" (e.g., "Assault Bike — 2 min easy", "World's Greatest Stretch ×6/side", "Goblet Squats ×10", "Empty Bar Warmup ×2 sets")
+- Only prescribe equipment the user has (see equipment list in user prompt)
+- Respect role rules and body signals — if the user flagged "low back", skip loaded hip hinges in warmup too
+
+MAIN-BLOCK RULES:
 - Only include fields relevant to each item (omit reps if using schemeReps, etc.)
 - For AMRAP/EMOM: items have "reps" (number) + "unit"
 - For FORTIME/CHIPPER: items have "schemeReps" ([21,15,9] or per-move reps) + "unit"
@@ -252,16 +266,21 @@ Pick one format from the valid list. Design a workout appropriate for ${mainMinu
     // Strip markdown code fences if the model adds them despite instructions
     text = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
 
-    const { main, finisher } = JSON.parse(text);
+    const { warmup: aiWarmup, main, finisher } = JSON.parse(text);
 
-    // Build full workout object with the same shape as generateHOD()
+    // Build full workout object with the same shape as generateHOD().
+    // Accept the AI's tailored warmup when present; otherwise fall back.
+    const warmup = aiWarmup && Array.isArray(aiWarmup.items) && aiWarmup.items.length
+      ? { label: 'WARMUP', duration: 5, note: aiWarmup.note || 'Prime for today', items: aiWarmup.items }
+      : { label: 'WARMUP', duration: 5, note: '5 min — bike easy + dynamic mobility' };
+
     const workout = {
       date: new Date().toISOString(),
       intensity: intense,
       style: { key: style, ...styleDef },
       format: main.format,
       duration,
-      warmup: { label: 'WARMUP', duration: 5, note: '5 min — bike easy + dynamic mobility' },
+      warmup,
       main,
       finisher,
     };
